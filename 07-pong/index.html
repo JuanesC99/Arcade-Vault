@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Duelo de Palas</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🏓</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#07060d; --panel:#12101f; --edge:#2e2a4a;
+  --ink:#e9e5ff; --dim:#8b83b4; --neon:#ff2e88; --volt:#35f0d0; --amber:#ffb020;
+  --pixel:'Press Start 2P', monospace;
+  --body:'Chakra Petch', 'Trebuchet MS', sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:var(--void); color:var(--ink); font-family:var(--body);
+  min-height:100vh; display:flex; align-items:center; justify-content:center;
+  padding:20px; gap:26px; flex-wrap:wrap;
+}
+body::before{
+  content:''; position:fixed; inset:0; z-index:99; pointer-events:none;
+  background:repeating-linear-gradient(to bottom, rgba(0,0,0,.22) 0 1px, transparent 1px 3px);
+}
+h1{font-family:var(--pixel); font-size:13px; margin-bottom:18px; text-shadow:2px 2px 0 var(--amber)}
+.stage{position:relative; border:1px solid var(--edge); background:#05040c;
+       box-shadow:0 0 0 6px var(--panel), 0 20px 60px rgba(0,0,0,.7)}
+canvas{display:block; cursor:none}
+.side{width:196px}
+.box{border:1px solid var(--edge); background:var(--panel); padding:13px 14px; margin-bottom:12px}
+.box h2{font-family:var(--pixel); font-size:9px; color:var(--volt); margin-bottom:9px}
+.box .val{font-family:var(--pixel); font-size:15px; color:var(--amber)}
+.keys{font-size:12px; color:var(--dim); line-height:1.9}
+.keys b{color:var(--ink); font-weight:600}
+.modo{display:flex; gap:6px; margin-top:4px}
+.modo button{
+  flex:1; font-family:var(--body); font-weight:700; font-size:12px;
+  letter-spacing:1px; text-transform:uppercase; cursor:pointer;
+  border:1px solid var(--edge); background:transparent; color:var(--dim); padding:6px 4px;
+}
+.modo button.on{background:var(--volt); border-color:var(--volt); color:var(--void)}
+.back{display:inline-block; margin-top:4px; font-family:var(--pixel); font-size:8px;
+      color:var(--void); background:var(--volt); padding:9px 11px; text-decoration:none}
+.back:hover{background:var(--neon); color:#12000a}
+.overlay{
+  position:absolute; inset:0; display:none; flex-direction:column;
+  align-items:center; justify-content:center; gap:16px;
+  background:rgba(5,4,12,.88); text-align:center; padding:20px;
+}
+.overlay.show{display:flex}
+.overlay p{font-family:var(--pixel); font-size:15px; line-height:1.9}
+.overlay small{color:var(--dim); font-size:13px; display:block; margin-top:6px}
+.overlay button{
+  font-family:var(--pixel); font-size:10px; border:0; cursor:pointer;
+  background:var(--neon); color:#12000a; padding:13px 18px;
+}
+.overlay button:hover{background:var(--volt); color:var(--void)}
+</style>
+</head>
+<body>
+
+<div>
+  <h1>DUELO DE PALAS</h1>
+  <div class="stage">
+    <canvas id="cv" width="720" height="480"></canvas>
+    <div class="overlay show" id="over">
+      <p id="overTitle">DUELO DE PALAS</p>
+      <small id="overText">Primero en llegar a 7 gana</small>
+      <button id="overBtn">EMPEZAR</button>
+    </div>
+  </div>
+</div>
+
+<div class="side">
+  <div class="box"><h2>TÚ</h2><div class="val" id="p1">0</div></div>
+  <div class="box"><h2>RIVAL</h2><div class="val" id="p2">0</div></div>
+  <div class="box"><h2>PELOTEO MÁS LARGO</h2><div class="val" id="rally">0</div></div>
+  <div class="box">
+    <h2>MODO</h2>
+    <div class="modo">
+      <button id="m1" class="on">1 JUGADOR</button>
+      <button id="m2">2 JUGADORES</button>
+    </div>
+  </div>
+  <div class="box">
+    <h2>CONTROLES</h2>
+    <div class="keys">
+      <b>Ratón</b> o <b>↑ ↓</b> pala izquierda<br>
+      <b>W S</b> pala derecha en dos jugadores<br>
+      <b>P</b> pausa
+    </div>
+  </div>
+  <a class="back" href="../04-arcade-vault/index.html">&lt; VOLVER AL SALÓN</a>
+</div>
+
+<script src="../04-arcade-vault/salon.js"></script>
+<script>
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const W = cv.width, H = cv.height;
+
+const PALA_W = 12, PALA_H = 84, PALA_VEL = 460;
+const META = 7;
+
+const izq = { x:26,           y:H/2 - PALA_H/2, w:PALA_W, h:PALA_H, vel:0 };
+const der = { x:W - 26 - PALA_W, y:H/2 - PALA_H/2, w:PALA_W, h:PALA_H, vel:0 };
+const bola = { x:W/2, y:H/2, r:8, vx:0, vy:0 };
+
+let p1 = 0, p2 = 0, rally = 0, mejorRally = 0;
+let estado = 'menu', dosJugadores = false, destellos = [];
+
+const teclas = {};
+const el = {
+  p1: document.getElementById('p1'),
+  p2: document.getElementById('p2'),
+  rally: document.getElementById('rally'),
+  over: document.getElementById('over'),
+  overTitle: document.getElementById('overTitle'),
+  overText: document.getElementById('overText'),
+  overBtn: document.getElementById('overBtn'),
+};
+
+function sacar(haciaIzquierda){
+  bola.x = W/2; bola.y = H/2;
+  const ang = (Math.random() * 0.7 - 0.35);
+  const vel = 340;
+  bola.vx = (haciaIzquierda ? -1 : 1) * vel * Math.cos(ang);
+  bola.vy = vel * Math.sin(ang);
+  rally = 0;
+}
+
+function arrancar(){
+  p1 = 0; p2 = 0; mejorRally = 0;
+  izq.y = der.y = H/2 - PALA_H/2;
+  estado = 'jugando';
+  el.over.classList.remove('show');
+  sacar(Math.random() < 0.5);
+  pintarHud();
+}
+
+function pintarHud(){
+  el.p1.textContent = p1;
+  el.p2.textContent = p2;
+  el.rally.textContent = mejorRally;
+}
+
+function punto(paraP1){
+  if(paraP1) p1++; else p2++;
+  mejorRally = Math.max(mejorRally, rally);
+  destellos.push({ x: paraP1 ? W - 30 : 30, y: bola.y, t: 0 });
+  pintarHud();
+
+  if(p1 >= META || p2 >= META){
+    estado = 'fin';
+    el.overTitle.textContent = p1 >= META ? 'GANASTE' : 'PERDISTE';
+    el.overText.textContent = p1 + ' a ' + p2 + ' · peloteo más largo de ' + mejorRally + ' golpes';
+    el.overBtn.textContent = 'OTRA PARTIDA';
+    el.over.classList.add('show');
+    window.Hall && Hall.registrar('07-pong', mejorRally, { unidad: 'golpes', etiqueta: p1 + '-' + p2 });
+    return;
+  }
+  sacar(paraP1);
+}
+
+function chocaPala(p){
+  return bola.x + bola.r > p.x && bola.x - bola.r < p.x + p.w &&
+         bola.y + bola.r > p.y && bola.y - bola.r < p.y + p.h;
+}
+
+function rebotar(p, haciaDerecha){
+  const centro = p.y + p.h / 2;
+  const rel = (bola.y - centro) / (p.h / 2);        // -1 arriba, 1 abajo
+  const ang = rel * (Math.PI / 3.4);                 // hasta ~53 grados
+  const vel = Math.min(760, Math.hypot(bola.vx, bola.vy) * 1.055);
+  bola.vx = (haciaDerecha ? 1 : -1) * vel * Math.cos(ang);
+  bola.vy = vel * Math.sin(ang);
+  bola.x = haciaDerecha ? p.x + p.w + bola.r : p.x - bola.r;
+  rally++;
+}
+
+function actualizar(dt){
+  // pala izquierda por teclado
+  if(teclas.arrowup)   izq.y -= PALA_VEL * dt;
+  if(teclas.arrowdown) izq.y += PALA_VEL * dt;
+
+  // pala derecha
+  if(dosJugadores){
+    if(teclas.w) der.y -= PALA_VEL * dt;
+    if(teclas.s) der.y += PALA_VEL * dt;
+  } else {
+    // la máquina sigue la bola con retraso, así se le puede ganar
+    const objetivo = bola.vx > 0 ? bola.y - der.h / 2 : H/2 - der.h/2;
+    const dif = objetivo - der.y;
+    const maxVel = 300 + Math.min(140, (p2 - p1) * -30);
+    der.y += Math.max(-maxVel * dt, Math.min(maxVel * dt, dif));
+  }
+
+  izq.y = Math.max(0, Math.min(H - PALA_H, izq.y));
+  der.y = Math.max(0, Math.min(H - PALA_H, der.y));
+
+  bola.x += bola.vx * dt;
+  bola.y += bola.vy * dt;
+
+  if(bola.y - bola.r < 0){ bola.y = bola.r; bola.vy = Math.abs(bola.vy); }
+  if(bola.y + bola.r > H){ bola.y = H - bola.r; bola.vy = -Math.abs(bola.vy); }
+
+  if(bola.vx < 0 && chocaPala(izq)) rebotar(izq, true);
+  if(bola.vx > 0 && chocaPala(der)) rebotar(der, false);
+
+  if(bola.x + bola.r < 0) punto(false);
+  if(bola.x - bola.r > W) punto(true);
+
+  destellos.forEach(d => d.t += dt);
+  destellos = destellos.filter(d => d.t < .5);
+}
+
+function dibujar(){
+  ctx.fillStyle = '#05040c';
+  ctx.fillRect(0, 0, W, H);
+
+  // red central
+  ctx.strokeStyle = 'rgba(139,131,180,.35)';
+  ctx.lineWidth = 3;
+  ctx.setLineDash([12, 14]);
+  ctx.beginPath(); ctx.moveTo(W/2, 0); ctx.lineTo(W/2, H); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // marcador de fondo
+  ctx.font = 'bold 110px "Press Start 2P", monospace';
+  ctx.fillStyle = 'rgba(46,42,74,.55)';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(p1, W/2 - 120, 96);
+  ctx.fillText(p2, W/2 + 120, 96);
+
+  destellos.forEach(d => {
+    ctx.globalAlpha = 1 - d.t / .5;
+    ctx.fillStyle = '#ff2e88';
+    ctx.fillRect(d.x - 6, 0, 12, H);
+    ctx.globalAlpha = 1;
+  });
+
+  ctx.fillStyle = '#35f0d0';
+  ctx.shadowColor = '#35f0d0'; ctx.shadowBlur = 16;
+  ctx.fillRect(izq.x, izq.y, izq.w, izq.h);
+
+  ctx.fillStyle = '#ff2e88';
+  ctx.shadowColor = '#ff2e88';
+  ctx.fillRect(der.x, der.y, der.w, der.h);
+
+  ctx.fillStyle = '#ffe9a8';
+  ctx.shadowColor = '#ffb020';
+  ctx.beginPath();
+  ctx.arc(bola.x, bola.y, bola.r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+}
+
+cv.addEventListener('mousemove', e => {
+  if(estado !== 'jugando') return;
+  const r = cv.getBoundingClientRect();
+  const y = (e.clientY - r.top) * (H / r.height);
+  izq.y = Math.max(0, Math.min(H - PALA_H, y - PALA_H / 2));
+});
+
+document.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  teclas[k] = true;
+  if(['arrowup','arrowdown'].includes(k)) e.preventDefault();
+  if(k === 'p'){
+    if(estado === 'jugando'){
+      estado = 'pausa';
+      el.overTitle.textContent = 'PAUSA';
+      el.overText.textContent = 'Pulsa P para seguir';
+      el.overBtn.textContent = 'REINICIAR';
+      el.over.classList.add('show');
+    } else if(estado === 'pausa'){
+      estado = 'jugando';
+      el.over.classList.remove('show');
+    }
+  }
+});
+document.addEventListener('keyup', e => { teclas[e.key.toLowerCase()] = false; });
+
+document.getElementById('m1').addEventListener('click', () => {
+  dosJugadores = false;
+  document.getElementById('m1').classList.add('on');
+  document.getElementById('m2').classList.remove('on');
+});
+document.getElementById('m2').addEventListener('click', () => {
+  dosJugadores = true;
+  document.getElementById('m2').classList.add('on');
+  document.getElementById('m1').classList.remove('on');
+});
+
+el.overBtn.addEventListener('click', arrancar);
+
+let ultimo = performance.now();
+function bucle(t){
+  const dt = Math.min(0.05, (t - ultimo) / 1000);
+  ultimo = t;
+  if(estado === 'jugando') actualizar(dt);
+  dibujar();
+  requestAnimationFrame(bucle);
+}
+
+pintarHud();
+requestAnimationFrame(bucle);
+</script>
+
+</body>
+</html>

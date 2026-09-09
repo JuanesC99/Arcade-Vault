@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arcade Vault</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🕹️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#07060d;
+  --panel:#12101f;
+  --panel2:#1b1830;
+  --edge:#2e2a4a;
+  --ink:#e9e5ff;
+  --dim:#8b83b4;
+  --neon:#ff2e88;
+  --volt:#35f0d0;
+  --amber:#ffb020;
+  --pixel:'Press Start 2P', monospace;
+  --body:'Chakra Petch', 'Trebuchet MS', sans-serif;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+
+html{scroll-behavior:smooth}
+
+body{
+  background:var(--void);
+  color:var(--ink);
+  font-family:var(--body);
+  font-size:15px;
+  line-height:1.55;
+  overflow-x:hidden;
+}
+
+/* ---------- atmósfera CRT ---------- */
+body::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  z-index:900;
+  pointer-events:none;
+  background:repeating-linear-gradient(
+    to bottom,
+    rgba(0,0,0,.24) 0 1px,
+    rgba(0,0,0,0) 1px 3px
+  );
+  mix-blend-mode:multiply;
+  opacity:.55;
+}
+body::after{
+  content:'';
+  position:fixed;
+  inset:0;
+  z-index:901;
+  pointer-events:none;
+  background:radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 40%, rgba(0,0,0,.65) 100%);
+}
+
+.grain{
+  position:fixed;
+  inset:-50%;
+  z-index:899;
+  pointer-events:none;
+  opacity:.16;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation:grainshift 6s steps(6) infinite;
+}
+@keyframes grainshift{
+  0%{transform:translate(0,0)}
+  25%{transform:translate(-3%,2%)}
+  50%{transform:translate(2%,-3%)}
+  75%{transform:translate(-2%,-2%)}
+  100%{transform:translate(0,0)}
+}
+
+.horizon{
+  position:fixed;
+  left:0;right:0;bottom:0;
+  height:52vh;
+  z-index:0;
+  pointer-events:none;
+  background:
+    linear-gradient(to top, rgba(255,46,136,.12), transparent 70%),
+    repeating-linear-gradient(to right, rgba(53,240,208,.14) 0 1px, transparent 1px 64px),
+    repeating-linear-gradient(to bottom, rgba(53,240,208,.14) 0 1px, transparent 1px 42px);
+  transform:perspective(340px) rotateX(62deg);
+  transform-origin:bottom center;
+  opacity:.5;
+}
+
+/* ---------- barra superior ---------- */
+.topbar{
+  position:sticky;
+  top:0;
+  z-index:800;
+  background:rgba(7,6,13,.92);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--edge);
+}
+
+.topbar-inner{
+  max-width:1180px;
+  margin:0 auto;
+  padding:14px 24px;
+  display:flex;
+  align-items:center;
+  gap:26px;
+}
+
+.logo{
+  font-family:var(--pixel);
+  font-size:13px;
+  letter-spacing:.5px;
+  color:var(--ink);
+  text-decoration:none;
+  white-space:nowrap;
+  text-shadow:2px 2px 0 var(--neon), 4px 4px 0 rgba(53,240,208,.45);
+}
+.logo span{color:var(--volt)}
+
+.nav{display:flex;gap:20px;flex:1}
+.nav a{
+  color:var(--dim);
+  text-decoration:none;
+  font-weight:600;
+  font-size:13px;
+  letter-spacing:1.6px;
+  text-transform:uppercase;
+  padding:4px 0;
+  border-bottom:2px solid transparent;
+  transition:color .18s, border-color .18s;
+}
+.nav a:hover,.nav a.on{color:var(--ink);border-bottom-color:var(--neon)}
+
+.wallet{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-family:var(--pixel);
+  font-size:9px;
+  color:var(--amber);
+  border:1px solid var(--edge);
+  background:var(--panel);
+  padding:9px 13px;
+  white-space:nowrap;
+}
+.coin{
+  width:13px;height:13px;
+  border-radius:50%;
+  background:radial-gradient(circle at 32% 30%, #ffe08a, var(--amber) 60%, #a86a00);
+  box-shadow:0 0 9px rgba(255,176,32,.7);
+  animation:spin 2.6s linear infinite;
+}
+@keyframes spin{
+  0%,100%{transform:scaleX(1)}
+  50%{transform:scaleX(.18)}
+}
+
+/* ---------- barra de categorías ---------- */
+.chips{
+  border-bottom:1px solid var(--edge);
+  background:linear-gradient(var(--panel), var(--void));
+}
+.chips-inner{
+  max-width:1180px;
+  margin:0 auto;
+  padding:10px 24px;
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}
+.chip{
+  font-size:12px;
+  letter-spacing:1.4px;
+  text-transform:uppercase;
+  font-weight:600;
+  color:var(--dim);
+  border:1px solid var(--edge);
+  background:transparent;
+  padding:5px 12px;
+  cursor:pointer;
+  transition:all .18s;
+}
+.chip:hover{color:var(--ink);border-color:var(--volt)}
+.chip.on{color:var(--void);background:var(--volt);border-color:var(--volt)}
+
+/* ---------- estructura ---------- */
+.wrap{
+  position:relative;
+  z-index:10;
+  max-width:1180px;
+  margin:0 auto;
+  padding:38px 24px 90px;
+}
+
+.eyebrow{
+  font-family:var(--pixel);
+  font-size:10px;
+  color:var(--volt);
+  letter-spacing:1px;
+  margin-bottom:16px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+.eyebrow::after{
+  content:'';
+  flex:1;
+  height:1px;
+  background:linear-gradient(to right, var(--edge), transparent);
+}
+
+.reveal{
+  opacity:0;
+  transform:translateY(16px);
+  animation:rise .55s cubic-bezier(.2,.7,.3,1) forwards;
+}
+@keyframes rise{to{opacity:1;transform:none}}
+
+/* ---------- destacado ---------- */
+.hero{
+  display:grid;
+  grid-template-columns:1.55fr 1fr;
+  gap:2px;
+  background:var(--edge);
+  border:1px solid var(--edge);
+  margin-bottom:14px;
+}
+
+.hero-art{
+  position:relative;
+  min-height:390px;
+  overflow:hidden;
+}
+.hero-art .scan{
+  position:absolute;
+  inset:0;
+  background:repeating-linear-gradient(to bottom, rgba(0,0,0,.35) 0 2px, transparent 2px 5px);
+  opacity:.5;
+}
+.hero-badge{
+  position:absolute;
+  top:0;left:0;
+  font-family:var(--pixel);
+  font-size:9px;
+  background:var(--neon);
+  color:#12000a;
+  padding:9px 14px;
+  z-index:3;
+}
+
+.hero-side{
+  background:var(--panel);
+  padding:26px 24px;
+  display:flex;
+  flex-direction:column;
+}
+.hero-title{
+  font-family:var(--pixel);
+  font-size:16px;
+  line-height:1.7;
+  margin-bottom:14px;
+  text-shadow:2px 2px 0 rgba(255,46,136,.55);
+}
+.hero-desc{
+  color:var(--dim);
+  font-size:14px;
+  margin-bottom:18px;
+}
+.meta{
+  font-size:12px;
+  color:var(--dim);
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  margin-bottom:18px;
+  letter-spacing:.4px;
+}
+.meta b{color:var(--ink);font-weight:600}
+
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:22px}
+.tag{
+  font-size:11px;
+  letter-spacing:1.2px;
+  text-transform:uppercase;
+  color:var(--dim);
+  background:var(--panel2);
+  border:1px solid var(--edge);
+  padding:3px 9px;
+}
+
+.buyrow{margin-top:auto;display:flex;align-items:stretch;gap:2px}
+.price-box{
+  display:flex;
+  align-items:center;
+  background:var(--panel2);
+  border:1px solid var(--edge);
+  padding:0 16px;
+}
+.now{font-family:var(--pixel);font-size:11px;color:var(--amber)}
+
+.btn{
+  flex:1;
+  font-family:var(--pixel);
+  font-size:10px;
+  white-space:nowrap;
+  border:0;
+  cursor:pointer;
+  padding:16px 14px;
+  background:var(--volt);
+  color:var(--void);
+  text-decoration:none;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  transition:transform .15s, box-shadow .15s, background .15s;
+}
+.btn:hover{transform:translateY(-2px);box-shadow:0 5px 0 rgba(53,240,208,.35);background:var(--neon);color:#12000a}
+
+.strip{display:grid;grid-template-columns:repeat(5,1fr);gap:2px;margin-bottom:56px}
+.thumb{
+  position:relative;
+  height:78px;
+  border:1px solid var(--edge);
+  cursor:pointer;
+  overflow:hidden;
+  opacity:.42;
+  transition:opacity .2s, border-color .2s;
+}
+.thumb:hover{opacity:.8}
+.thumb.on{opacity:1;border-color:var(--volt)}
+.thumb i{
+  position:absolute;
+  bottom:5px;left:6px;right:6px;
+  font-family:var(--pixel);
+  font-size:7px;
+  font-style:normal;
+  color:#fff;
+  text-shadow:1px 1px 0 #000;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* ---------- cuerpo con barra lateral ---------- */
+.columns{display:grid;grid-template-columns:1fr 300px;gap:44px;align-items:start}
+
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+
+.card{
+  display:grid;
+  grid-template-columns:150px 1fr;
+  border:1px solid var(--edge);
+  background:var(--panel);
+  overflow:hidden;
+  text-decoration:none;
+  color:inherit;
+  transition:transform .2s, border-color .2s, background .2s;
+}
+.card:hover{transform:translateX(4px);border-color:var(--volt);background:var(--panel2)}
+.card .art{position:relative;min-height:112px}
+.card .pad{padding:12px 14px;display:flex;flex-direction:column}
+.card h4{font-size:15px;font-weight:700;letter-spacing:.3px;margin-bottom:3px}
+.card .genre{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:1.3px}
+.card .mini{font-size:12px;color:var(--dim);margin-top:6px;line-height:1.4}
+.card .foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:10px}
+.card .now{font-size:10px}
+.card .go{
+  font-family:var(--pixel);
+  font-size:8px;
+  color:var(--void);
+  background:var(--volt);
+  padding:6px 9px;
+}
+.card:hover .go{background:var(--neon);color:#12000a}
+
+.side{border:1px solid var(--edge);background:var(--panel);padding:18px 16px}
+.side h3{
+  font-family:var(--pixel);
+  font-size:10px;
+  color:var(--volt);
+  margin-bottom:16px;
+  letter-spacing:.5px;
+}
+.rank{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px dashed var(--edge);text-decoration:none;color:inherit}
+.rank:last-child{border-bottom:0}
+.rank:hover .t b{color:var(--volt)}
+.rank .n{
+  font-family:var(--pixel);
+  font-size:11px;
+  color:var(--dim);
+  width:22px;
+  flex:none;
+}
+.rank .art{width:52px;height:32px;flex:none;border:1px solid var(--edge)}
+.rank .t{flex:1;min-width:0}
+.rank .t b{display:block;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:color .18s}
+.rank .t span{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:1.1px}
+
+.marquee{
+  margin-top:18px;
+  border:1px solid var(--edge);
+  background:var(--panel);
+  padding:14px 16px;
+  overflow:hidden;
+}
+.marquee h3{margin-bottom:10px}
+.ticker{white-space:nowrap;overflow:hidden}
+.ticker span{
+  display:inline-block;
+  padding-left:100%;
+  font-size:12px;
+  color:var(--dim);
+  letter-spacing:1.2px;
+  animation:slide 18s linear infinite;
+}
+@keyframes slide{to{transform:translateX(-100%)}}
+
+/* ---------- pie ---------- */
+footer{
+  position:relative;
+  z-index:10;
+  border-top:1px solid var(--edge);
+  background:var(--panel);
+  padding:26px 24px;
+  text-align:center;
+}
+footer p{font-size:12px;color:var(--dim);letter-spacing:1.2px}
+footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
+
+/* ---------- carátulas procedurales ---------- */
+.art{background-color:#0d0b18;background-blend-mode:screen}
+.a1{background-image:
+  repeating-linear-gradient(45deg, rgba(255,46,136,.5) 0 8px, transparent 8px 16px),
+  radial-gradient(circle at 30% 30%, rgba(53,240,208,.75), transparent 60%),
+  linear-gradient(160deg,#2a0a3d,#06121f)}
+.a2{background-image:
+  repeating-linear-gradient(to bottom, rgba(53,240,208,.3) 0 3px, transparent 3px 14px),
+  linear-gradient(to top, rgba(255,176,32,.85), transparent 55%),
+  linear-gradient(200deg,#101a3d,#3d0a24)}
+.a3{background-image:
+  repeating-linear-gradient(to right, rgba(255,255,255,.12) 0 2px, transparent 2px 26px),
+  radial-gradient(ellipse at 50% 115%, rgba(53,240,208,.9), transparent 62%),
+  linear-gradient(#050a1e,#170a2e)}
+.a4{background-image:
+  radial-gradient(circle at 22% 28%, rgba(53,240,208,.9), transparent 45%),
+  radial-gradient(circle at 76% 72%, rgba(255,46,136,.85), transparent 45%),
+  linear-gradient(120deg,#12081f,#04141a)}
+.a5{background-image:
+  linear-gradient(75deg, rgba(53,240,208,.85) 0 26%, transparent 26%),
+  linear-gradient(255deg, rgba(255,46,136,.85) 0 26%, transparent 26%),
+  radial-gradient(circle at 50% 50%, rgba(255,224,140,.9), transparent 22%),
+  linear-gradient(#100a24,#04121c)}
+
+.a6{background-image:
+  repeating-linear-gradient(to bottom, rgba(124,232,92,.35) 0 4px, transparent 4px 16px),
+  radial-gradient(circle at 50% 30%, rgba(255,46,136,.85), transparent 55%),
+  linear-gradient(#08061c,#1d0b12)}
+.a7{background-image:
+  linear-gradient(to top, rgba(255,176,32,.85), transparent 60%),
+  repeating-linear-gradient(to right, rgba(255,255,255,.10) 0 3px, transparent 3px 30px),
+  linear-gradient(#0b0620,#2a1040)}
+.a8{background-image:
+  conic-gradient(from 45deg at 50% 50%, #ff2e88 0 25%, #35f0d0 25% 50%, #ffb020 50% 75%, #7c6bff 75%),
+  linear-gradient(#000,#000)}
+.a9{background-image:
+  repeating-conic-gradient(from 0deg at 50% 50%, #1b1830 0 18deg, #2b1140 18deg 36deg),
+  radial-gradient(circle at 50% 50%, rgba(255,90,90,.9), transparent 50%)}
+.a10{background-image:
+  repeating-linear-gradient(to right, rgba(53,240,208,.4) 0 5px, transparent 5px 20px),
+  repeating-linear-gradient(to bottom, rgba(255,176,32,.4) 0 5px, transparent 5px 20px),
+  linear-gradient(140deg,#0b1226,#241035)}
+
+.a11{background-image:
+  linear-gradient(#2a0a3d,#7a1050 55%,#ff6a3d),
+  radial-gradient(circle at 50% 46%, rgba(255,224,102,.95), transparent 26%)}
+
+/* ---------- botones de la ficha ---------- */
+.card .acciones{display:flex;gap:6px;align-items:center}
+.ojo{
+  font-family:var(--pixel);
+  font-size:8px;
+  color:var(--ink);
+  background:var(--panel2);
+  border:1px solid var(--edge);
+  padding:6px 9px;
+  cursor:pointer;
+}
+.ojo:hover{border-color:var(--volt);color:var(--volt)}
+
+.btn.secundario{
+  flex:0 0 auto;
+  font-size:9px;
+  padding:16px 12px;
+  background:var(--panel2);
+  color:var(--ink);
+  border:1px solid var(--edge);
+}
+.btn.secundario:hover{background:var(--panel2);color:var(--volt);border-color:var(--volt);box-shadow:none}
+
+/* ---------- vista previa ---------- */
+.modal{
+  position:fixed;
+  inset:0;
+  z-index:950;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  background:rgba(4,3,10,.9);
+  backdrop-filter:blur(3px);
+}
+.modal.show{display:flex}
+.modal-caja{
+  background:var(--panel);
+  border:1px solid var(--edge);
+  box-shadow:0 30px 90px rgba(0,0,0,.8);
+  max-width:100%;
+}
+.modal-barra{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  padding:12px 16px;
+  border-bottom:1px solid var(--edge);
+}
+.modal-barra h3{
+  font-family:var(--pixel);
+  font-size:11px;
+  flex:1;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.modal-barra a, .modal-barra button{
+  font-family:var(--pixel);
+  font-size:9px;
+  border:0;
+  cursor:pointer;
+  padding:9px 12px;
+  text-decoration:none;
+}
+.modal-barra .abrir{background:var(--volt);color:var(--void)}
+.modal-barra .abrir:hover{background:var(--neon);color:#12000a}
+.modal-barra .cerrar{background:var(--panel2);color:var(--ink);border:1px solid var(--edge)}
+.modal-barra .cerrar:hover{border-color:var(--neon);color:var(--neon)}
+
+.marco{
+  position:relative;
+  width:792px;
+  height:541px;
+  max-width:100%;
+  overflow:hidden;
+  background:#05040c;
+}
+.marco iframe{
+  position:absolute;
+  top:0;left:0;
+  width:1200px;
+  height:820px;
+  border:0;
+  transform:scale(.66);
+  transform-origin:top left;
+}
+.modal-pie{
+  padding:10px 16px;
+  border-top:1px solid var(--edge);
+  font-size:12px;
+  color:var(--dim);
+  letter-spacing:.4px;
+}
+
+/* ---------- hall of fame ---------- */
+.hof{margin-top:64px}
+.hof-cabecera{
+  display:flex;
+  align-items:flex-end;
+  gap:16px;
+  flex-wrap:wrap;
+  margin-bottom:18px;
+}
+.hof-cabecera .campo{display:flex;flex-direction:column;gap:5px}
+.hof-cabecera label{
+  font-size:11px;
+  color:var(--dim);
+  text-transform:uppercase;
+  letter-spacing:1.4px;
+}
+.hof-cabecera input{
+  font-family:var(--pixel);
+  font-size:11px;
+  background:var(--panel);
+  border:1px solid var(--edge);
+  color:var(--amber);
+  padding:9px 11px;
+  width:190px;
+  text-transform:uppercase;
+}
+.hof-cabecera input:focus{outline:0;border-color:var(--volt)}
+#borrarHof{
+  font-family:var(--pixel);
+  font-size:9px;
+  background:transparent;
+  border:1px solid var(--edge);
+  color:var(--dim);
+  padding:10px 12px;
+  cursor:pointer;
+}
+#borrarHof:hover{border-color:var(--neon);color:var(--neon)}
+#borrarHof.armado{background:var(--neon);border-color:var(--neon);color:#12000a}
+
+.hof-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.hof-card{border:1px solid var(--edge);background:var(--panel);padding:14px 16px}
+.hof-card h4{
+  font-family:var(--pixel);
+  font-size:10px;
+  color:var(--volt);
+  margin-bottom:4px;
+}
+.hof-card .que{
+  font-size:11px;
+  color:var(--dim);
+  text-transform:uppercase;
+  letter-spacing:1.2px;
+  margin-bottom:11px;
+}
+.hof-fila{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:baseline;
+  gap:10px;
+  padding:6px 0;
+  border-bottom:1px dashed var(--edge);
+  font-size:13px;
+}
+.hof-fila:last-child{border-bottom:0}
+.hof-fila .pos{font-family:var(--pixel);font-size:10px;color:var(--dim);width:20px;flex:none}
+.hof-fila .pos.oro{color:var(--amber)}
+.hof-fila .quien{flex:1 1 auto;min-width:52px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hof-fila .cuanto{flex:none;font-family:var(--pixel);font-size:10px;color:var(--amber);white-space:nowrap}
+/* la etiqueta baja a su propia línea, alineada bajo el nombre */
+.hof-fila .extra{flex:0 0 100%;margin-left:30px;margin-top:-2px;font-size:11px;color:var(--dim)}
+.hof-vacio{font-size:12px;color:var(--dim);padding:8px 0}
+.hof-aviso{
+  border:1px solid var(--neon);
+  background:rgba(255,46,136,.08);
+  padding:12px 14px;
+  font-size:13px;
+  margin-bottom:16px;
+}
+
+.a12{background-image:
+  radial-gradient(circle at 32% 34%, rgba(200,194,232,.9), transparent 16%),
+  radial-gradient(circle at 68% 62%, rgba(139,131,180,.85), transparent 13%),
+  radial-gradient(circle at 50% 50%, rgba(53,240,208,.5), transparent 30%),
+  linear-gradient(#04030c,#0d0b20)}
+.a13{background-image:
+  repeating-linear-gradient(to bottom, #131120 0 14px, #0b2340 14px 28px),
+  linear-gradient(90deg, rgba(124,232,92,.7), transparent 40%)}
+.a14{background-image:
+  radial-gradient(circle at 26% 40%, #ff2e88 0 9%, transparent 9%),
+  radial-gradient(circle at 50% 62%, #ffb020 0 9%, transparent 9%),
+  radial-gradient(circle at 74% 40%, #ff2e88 0 9%, transparent 9%),
+  linear-gradient(#1b1830,#0a0814)}
+
+@media(max-width:980px){
+  .hero{grid-template-columns:1fr}
+  .columns{grid-template-columns:1fr}
+  .grid{grid-template-columns:1fr}
+  .nav{display:none}
+}
+@media(max-width:560px){
+  .strip{grid-template-columns:repeat(3,1fr)}
+  .topbar-inner{gap:14px}
+  .card{grid-template-columns:110px 1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="grain"></div>
+<div class="horizon"></div>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="logo" href="#">ARCADE<span>VAULT</span></a>
+    <nav class="nav">
+      <a href="#" class="on">Salón</a>
+      <a href="#catalogo">Catálogo</a>
+      <a href="#biblioteca">Biblioteca</a>
+      <a href="#hall">Hall of Fame</a>
+    </nav>
+    <div class="wallet"><span class="coin"></span> 14 CABINAS</div>
+  </div>
+</header>
+
+<div class="chips">
+  <div class="chips-inner" id="chips">
+    <button class="chip on" data-genre="todos">Todos</button>
+    <button class="chip" data-genre="ladrillos">Ladrillos</button>
+    <button class="chip" data-genre="puzle">Puzle</button>
+    <button class="chip" data-genre="corredor">Corredor</button>
+    <button class="chip" data-genre="clásico">Clásico</button>
+    <button class="chip" data-genre="deportes">Deportes</button>
+    <button class="chip" data-genre="disparos">Disparos</button>
+    <button class="chip" data-genre="reflejos">Reflejos</button>
+    <button class="chip" data-genre="memoria">Memoria</button>
+    <button class="chip" data-genre="lógica">Lógica</button>
+    <button class="chip" data-genre="destreza">Destreza</button>
+    <button class="chip" data-genre="espacio">Espacio</button>
+    <button class="chip" data-genre="travesía">Travesía</button>
+    <button class="chip" data-genre="mesa">Mesa</button>
+  </div>
+</div>
+
+<main class="wrap">
+
+  <p class="eyebrow reveal" style="animation-delay:.05s">CABINA DESTACADA</p>
+
+  <section class="hero reveal" style="animation-delay:.1s">
+    <div class="hero-art art a1" id="heroArt">
+      <span class="hero-badge">EN CABINA</span>
+      <span class="scan"></span>
+    </div>
+    <div class="hero-side">
+      <h2 class="hero-title" id="heroTitle">ARKANOID</h2>
+      <p class="hero-desc" id="heroDesc"></p>
+      <div class="meta">
+        <span>Carpeta · <b id="heroCarpeta"></b></span>
+        <span>Jugadores · <b id="heroJugadores"></b></span>
+        <span>Controles · <b id="heroControles"></b></span>
+      </div>
+      <div class="tags" id="heroTags"></div>
+      <div class="buyrow">
+        <div class="price-box"><span class="now">GRATIS</span></div>
+        <button class="btn secundario" id="heroOjo">VISTA PREVIA</button>
+        <a class="btn" id="heroBtn" href="../03-arkanoid/index.html">JUGAR AHORA</a>
+      </div>
+    </div>
+  </section>
+
+  <div class="strip reveal" style="animation-delay:.16s" id="strip"></div>
+
+  <div class="columns">
+    <div>
+      <p class="eyebrow reveal" style="animation-delay:.22s" id="catalogo">CATÁLOGO DEL SALÓN</p>
+      <div class="grid reveal" style="animation-delay:.26s" id="grid"></div>
+    </div>
+
+    <aside>
+      <div class="side reveal" style="animation-delay:.3s" id="biblioteca">
+        <h3>TU BIBLIOTECA</h3>
+        <div id="rank"></div>
+      </div>
+      <div class="marquee reveal" style="animation-delay:.34s">
+        <h3>AVISOS</h3>
+        <div class="ticker"><span>TODAS LAS CABINAS CORREN EN LOCAL · SIN INSTALAR NADA · CATORCE JUEGOS EN HTML Y JAVASCRIPT PURO · PULSA P PARA PAUSAR EN CUALQUIERA · NO GOLPEES LA MÁQUINA</span></div>
+      </div>
+    </aside>
+  </div>
+
+  <section class="hof reveal" id="hall" style="animation-delay:.38s">
+    <p class="eyebrow">HALL OF FAME</p>
+    <div id="hofAviso"></div>
+    <div class="hof-cabecera">
+      <div class="campo">
+        <label for="jugador">Firmas tus marcas como</label>
+        <input id="jugador" maxlength="12" spellcheck="false" autocomplete="off">
+      </div>
+      <button id="borrarHof">BORRAR MARCAS</button>
+    </div>
+    <div class="hof-grid" id="hofGrid"></div>
+  </section>
+
+</main>
+
+<div class="modal" id="modal">
+  <div class="modal-caja">
+    <div class="modal-barra">
+      <h3 id="modalTitulo">VISTA PREVIA</h3>
+      <a class="abrir" id="modalAbrir" href="#">JUGAR EN GRANDE</a>
+      <button class="cerrar" id="modalCerrar">CERRAR</button>
+    </div>
+    <div class="marco"><iframe id="modalFrame" title="Vista previa"></iframe></div>
+    <div class="modal-pie">La cabina corre aquí dentro. Haz clic sobre ella para que reciba el teclado.</div>
+  </div>
+</div>
+
+<footer>
+  <a class="logo" href="#">ARCADE<span>VAULT</span></a>
+  <p>SALÓN LOCAL · 14 CABINAS EN 01-FIRSTCODE · 2026</p>
+</footer>
+
+<script src="salon.js"></script>
+<script>
+/* Cada entrada apunta a una carpeta que existe de verdad en 01-firstcode. */
+const JUEGOS = [
+  {
+    t:'Arkanoid', g:'ladrillos', a:'a1',
+    url:'../03-arkanoid/index.html', carpeta:'03-arkanoid',
+    jugadores:'1 jugador', controles:'Ratón o flechas',
+    tags:['Ladrillos','Powerups','Puntuación alta','10 niveles'],
+    d:'Diez pantallas con bloques que aguantan hasta tres golpes y cápsulas que caen del techo. Si te quedas sin vidas, una cuenta atrás de diez segundos decide si continúas.'
+  },
+  {
+    t:'Metro Rush', g:'corredor', a:'a3',
+    url:'../02-game/index.html', carpeta:'02-game',
+    jugadores:'1 jugador', controles:'Flechas o deslizar',
+    tags:['Corredor infinito','3D','Monedas','Tienda'],
+    d:'Corredor infinito por las vías del metro. Tres carriles, trenes que puedes usar de plataforma, monedas, imán, escudo y jetpack, con un guardia pisándote los talones.'
+  },
+  {
+    t:'Bloques de Bolsillo', g:'puzle', a:'a2',
+    url:'../05-tetris/index.html', carpeta:'05-tetris',
+    jugadores:'1 jugador', controles:'Flechas y espacio',
+    tags:['Puzle','Piezas','Niveles','Sombra de caída'],
+    d:'Las siete piezas de siempre, repartidas en bolsas para que ninguna se haga esperar. Sombra de aterrizaje, soltado instantáneo y un nivel más cada diez líneas.'
+  },
+  {
+    t:'Cable Suelto', g:'clásico', a:'a4',
+    url:'../06-snake/index.html', carpeta:'06-snake',
+    jugadores:'1 jugador', controles:'Flechas o WASD',
+    tags:['Clásico','Reflejos','Récord','Rejilla'],
+    d:'Recoge chispas y el cable crece y acelera. El muro y tu propia cola terminan la partida, así que el sitio se acaba antes que la paciencia.'
+  },
+  {
+    t:'Duelo de Palas', g:'deportes', a:'a5',
+    url:'../07-pong/index.html', carpeta:'07-pong',
+    jugadores:'1 o 2 jugadores', controles:'Ratón, flechas y W S',
+    tags:['Deportes','Dos jugadores','Rebote por ángulo','A siete'],
+    d:'El ángulo de salida depende de dónde golpees con la pala, y la pelota acelera en cada rebote. Primero en llegar a siete, contra la máquina o contra alguien al lado.'
+  },
+  {
+    t:'Lluvia de Marcianos', g:'disparos', a:'a6',
+    url:'../08-invaders/index.html', carpeta:'08-invaders',
+    jugadores:'1 jugador', controles:'Flechas y espacio',
+    tags:['Disparos','Cinco oleadas','Búnkeres','Tres vidas'],
+    d:'Cinco oleadas que bajan más rápido cuantos menos marcianos quedan. Los cuatro búnkeres se desgastan con cada impacto, vengan de donde vengan.'
+  },
+  {
+    t:'Vuelo Rasante', g:'reflejos', a:'a7',
+    url:'../09-vuelo-rasante/index.html', carpeta:'09-vuelo-rasante',
+    jugadores:'1 jugador', controles:'Espacio o clic',
+    tags:['Reflejos','Un botón','Récord','Parallax'],
+    d:'Un toque sube la nave y la gravedad hace el resto. El hueco entre torres se estrecha cada cinco puertas y el mundo pasa más deprisa.'
+  },
+  {
+    t:'Memoria Neón', g:'memoria', a:'a8',
+    url:'../10-simon/index.html', carpeta:'10-simon',
+    jugadores:'1 jugador', controles:'Clic o Q W A S',
+    tags:['Memoria','Secuencias','Sonido','Un fallo y fuera'],
+    d:'Cuatro luces con su propia nota. La secuencia crece una luz por ronda y se reproduce cada vez más rápido, hasta que la mano se adelanta a la cabeza.'
+  },
+  {
+    t:'Campo Minado', g:'lógica', a:'a9',
+    url:'../11-campo-minado/index.html', carpeta:'11-campo-minado',
+    jugadores:'1 jugador', controles:'Clic y clic derecho',
+    tags:['Lógica','Tres dificultades','Banderas','Cronómetro'],
+    d:'La primera casilla nunca esconde mina, así que siempre se abre un hueco para empezar. Tres tamaños de campo y un cronómetro que no perdona las dudas.'
+  },
+  {
+    t:'Fusión 2048', g:'puzle', a:'a10',
+    url:'../12-fusion/index.html', carpeta:'12-fusion',
+    jugadores:'1 jugador', controles:'Arrastrar o flechas',
+    tags:['Puzle','Números','Récord','Sin límite'],
+    d:'Dos fichas iguales se funden en una del doble. Al llegar a 2048 puedes parar o seguir apretando el tablero hasta que no quede ni un hueco.'
+  },
+  {
+    t:'Piezas Sueltas', g:'destreza', a:'a11',
+    url:'../13-rompecabezas/index.html', carpeta:'13-rompecabezas',
+    jugadores:'1 jugador', controles:'Arrastrar con el ratón',
+    tags:['Rompecabezas','Arrastrar y soltar','Tres cuadros','Hasta 5×5'],
+    d:'Arrastra una pieza sobre otra para intercambiarlas. La pieza agarrada se levanta, se inclina y proyecta sombra sobre el tablero, así que siempre sabes cuál llevas en la mano.'
+  },
+  {
+    t:'Chatarra Espacial', g:'espacio', a:'a12',
+    url:'../14-asteroides/index.html', carpeta:'14-asteroides',
+    jugadores:'1 jugador', controles:'Flechas y espacio',
+    tags:['Espacio','Inercia','Rocas que se parten','Pantalla sin bordes'],
+    d:'La nave no frena sola y los bordes de la pantalla dan la vuelta, así que lo difícil no es disparar sino colocarse. Cada roca grande se parte en dos, y esas en otras dos.'
+  },
+  {
+    t:'Cruce Peligroso', g:'travesía', a:'a13',
+    url:'../15-cruce/index.html', carpeta:'15-cruce',
+    jugadores:'1 jugador', controles:'Flechas o WASD',
+    tags:['Travesía','Cinco casas','Tráfico','Río'],
+    d:'Cinco carriles de tráfico y cinco de río. En el agua solo sobrevives encima de un tronco, y el tronco se mueve contigo hacia el borde de la pantalla.'
+  },
+  {
+    t:'Cuatro en Línea', g:'mesa', a:'a14',
+    url:'../16-cuatro-en-linea/index.html', carpeta:'16-cuatro-en-linea',
+    jugadores:'1 o 2 jugadores', controles:'Clic o teclas 1 a 7',
+    tags:['Mesa','Contra la máquina','Tres niveles','Dos jugadores'],
+    d:'Contra una máquina que piensa con minimax y poda alfa-beta, en tres profundidades. En el nivel duro mira seis jugadas por delante y tapa antes de que veas la línea.'
+  },
+];
+
+const grid = document.getElementById('grid');
+const strip = document.getElementById('strip');
+const rank = document.getElementById('rank');
+
+function pintarGrid(genero){
+  const lista = genero === 'todos' ? JUEGOS : JUEGOS.filter(j => j.g === genero);
+  grid.innerHTML = lista.map(j => `
+    <a class="card" href="${j.url}">
+      <div class="art ${j.a}"></div>
+      <div class="pad">
+        <h4>${j.t}</h4>
+        <span class="genre">${j.g} · ${j.carpeta}</span>
+        <p class="mini">${j.jugadores} · ${j.controles}</p>
+        <div class="foot">
+          <span class="now">GRATIS</span>
+          <span class="acciones">
+            <button class="ojo" data-previa="${j.carpeta}">VISTA PREVIA</button>
+            <span class="go">JUGAR</span>
+          </span>
+        </div>
+      </div>
+    </a>`).join('');
+  if(!lista.length) grid.innerHTML = '<p style="color:var(--dim)">Ninguna cabina de ese tipo en el salón.</p>';
+}
+
+strip.innerHTML = JUEGOS.map((j, i) => `
+  <div class="art ${j.a} thumb ${i === 0 ? 'on' : ''}" data-i="${i}"><i>${j.t.toUpperCase()}</i></div>`).join('');
+
+rank.innerHTML = JUEGOS.map((j, i) => `
+  <a class="rank" href="${j.url}">
+    <span class="n">${String(i + 1).padStart(2, '0')}</span>
+    <span class="art ${j.a}"></span>
+    <span class="t"><b>${j.t}</b><span>${j.g}</span></span>
+  </a>`).join('');
+
+function mostrarDestacado(i){
+  const j = JUEGOS[i];
+  document.getElementById('heroArt').className = 'hero-art art ' + j.a;
+  document.getElementById('heroTitle').textContent = j.t;
+  document.getElementById('heroDesc').textContent = j.d;
+  document.getElementById('heroCarpeta').textContent = j.carpeta;
+  document.getElementById('heroJugadores').textContent = j.jugadores;
+  document.getElementById('heroControles').textContent = j.controles;
+  document.getElementById('heroTags').innerHTML = j.tags.map(t => `<span class="tag">${t}</span>`).join('');
+  document.getElementById('heroBtn').href = j.url;
+}
+
+document.getElementById('chips').addEventListener('click', e => {
+  const chip = e.target.closest('.chip');
+  if(!chip) return;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('on'));
+  chip.classList.add('on');
+  pintarGrid(chip.dataset.genre);
+});
+
+strip.addEventListener('click', e => {
+  const th = e.target.closest('.thumb');
+  if(!th) return;
+  document.querySelectorAll('.thumb').forEach(t => t.classList.remove('on'));
+  th.classList.add('on');
+  mostrarDestacado(+th.dataset.i);
+});
+
+/* ---------------- vista previa ----------------
+   El juego se carga en un iframe a escala dentro de la tienda.
+   Al cerrar se vacía el src para que la cabina deje de correr. */
+const modal = document.getElementById('modal');
+const modalFrame = document.getElementById('modalFrame');
+const modalTitulo = document.getElementById('modalTitulo');
+const modalAbrir = document.getElementById('modalAbrir');
+
+function abrirPrevia(juego){
+  modalTitulo.textContent = juego.t;
+  modalAbrir.href = juego.url;
+  modalFrame.src = juego.url;
+  modal.classList.add('show');
+}
+
+function cerrarPrevia(){
+  modal.classList.remove('show');
+  modalFrame.src = 'about:blank';
+}
+
+document.getElementById('modalCerrar').addEventListener('click', cerrarPrevia);
+modal.addEventListener('click', e => { if(e.target === modal) cerrarPrevia(); });
+document.addEventListener('keydown', e => { if(e.key === 'Escape') cerrarPrevia(); });
+
+document.getElementById('heroOjo').addEventListener('click', () => {
+  const activa = document.querySelector('.thumb.on');
+  abrirPrevia(JUEGOS[activa ? +activa.dataset.i : 0]);
+});
+
+// el botón vive dentro de la ficha, que es un enlace: hay que frenar la navegación
+grid.addEventListener('click', e => {
+  const b = e.target.closest('.ojo');
+  if(!b) return;
+  e.preventDefault();
+  e.stopPropagation();
+  abrirPrevia(JUEGOS.find(j => j.carpeta === b.dataset.previa));
+});
+
+/* ---------------- hall of fame ---------------- */
+const hofGrid = document.getElementById('hofGrid');
+const hofAviso = document.getElementById('hofAviso');
+const campoJugador = document.getElementById('jugador');
+const botonBorrar = document.getElementById('borrarHof');
+
+function pintarHof(){
+  if(!window.Hall || !Hall.disponible()){
+    hofAviso.innerHTML = '<div class="hof-aviso">Este navegador no deja guardar marcas en local, así que el Hall of Fame queda vacío.</div>';
+    hofGrid.innerHTML = '';
+    return;
+  }
+  hofAviso.innerHTML = '';
+  campoJugador.value = Hall.jugador();
+
+  const datos = Hall.leer();
+  hofGrid.innerHTML = JUEGOS.map(j => {
+    const ficha = datos[j.carpeta];
+    const marcas = (ficha && ficha.marcas) || [];
+    const unidad = (ficha && ficha.unidad) || '';
+    const que = ficha && ficha.menorEsMejor ? 'menor es mejor' : 'mayor es mejor';
+    const filas = marcas.length
+      ? marcas.map((m, i) => `
+          <div class="hof-fila">
+            <span class="pos ${i === 0 ? 'oro' : ''}">${i + 1}</span>
+            <span class="quien">${m.n}</span>
+            <span class="cuanto">${m.v}${unidad ? ' ' + unidad : ''}</span>
+            ${m.e ? `<span class="extra">${m.e} · ${m.f}</span>` : ''}
+          </div>`).join('')
+      : '<p class="hof-vacio">Sin marcas todavía. Juega una partida.</p>';
+    return `
+      <article class="hof-card">
+        <h4>${j.t}</h4>
+        <p class="que">${marcas.length ? que : j.g}</p>
+        ${filas}
+      </article>`;
+  }).join('');
+}
+
+campoJugador.addEventListener('change', () => {
+  campoJugador.value = Hall.ponerJugador(campoJugador.value);
+});
+
+// dos clics para borrar, así no se va una partida por un resbalón
+let armado = false;
+botonBorrar.addEventListener('click', () => {
+  if(!armado){
+    armado = true;
+    botonBorrar.classList.add('armado');
+    botonBorrar.textContent = '¿SEGURO? PULSA OTRA VEZ';
+    setTimeout(() => {
+      armado = false;
+      botonBorrar.classList.remove('armado');
+      botonBorrar.textContent = 'BORRAR MARCAS';
+    }, 4000);
+    return;
+  }
+  Hall.borrar();
+  armado = false;
+  botonBorrar.classList.remove('armado');
+  botonBorrar.textContent = 'BORRAR MARCAS';
+  pintarHof();
+});
+
+// al volver de una cabina, o al cerrar la vista previa, refrescamos las marcas
+window.addEventListener('focus', pintarHof);
+window.addEventListener('pageshow', pintarHof);
+document.getElementById('modalCerrar').addEventListener('click', pintarHof);
+
+mostrarDestacado(0);
+pintarGrid('todos');
+pintarHof();
+</script>
+
+</body>
+</html>

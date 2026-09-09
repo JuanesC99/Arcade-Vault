@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cruce Peligroso</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🐸</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#07060d; --panel:#12101f; --edge:#2e2a4a;
+  --ink:#e9e5ff; --dim:#8b83b4; --neon:#ff2e88; --volt:#35f0d0; --amber:#ffb020;
+  --pixel:'Press Start 2P', monospace;
+  --body:'Chakra Petch', 'Trebuchet MS', sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--void);color:var(--ink);font-family:var(--body);min-height:100vh;
+     display:flex;align-items:center;justify-content:center;padding:20px;gap:26px;flex-wrap:wrap}
+body::before{content:'';position:fixed;inset:0;z-index:99;pointer-events:none;
+  background:repeating-linear-gradient(to bottom, rgba(0,0,0,.22) 0 1px, transparent 1px 3px)}
+h1{font-family:var(--pixel);font-size:13px;margin-bottom:18px;text-shadow:2px 2px 0 var(--volt)}
+.stage{position:relative;border:1px solid var(--edge);background:#05040c;
+       box-shadow:0 0 0 6px var(--panel), 0 20px 60px rgba(0,0,0,.7)}
+canvas{display:block}
+.side{width:196px}
+.box{border:1px solid var(--edge);background:var(--panel);padding:13px 14px;margin-bottom:12px}
+.box h2{font-family:var(--pixel);font-size:9px;color:var(--volt);margin-bottom:9px}
+.box .val{font-family:var(--pixel);font-size:15px;color:var(--amber)}
+.keys{font-size:12px;color:var(--dim);line-height:1.9}
+.keys b{color:var(--ink);font-weight:600}
+.back{display:inline-block;margin-top:4px;font-family:var(--pixel);font-size:8px;
+      color:var(--void);background:var(--volt);padding:9px 11px;text-decoration:none}
+.back:hover{background:var(--neon);color:#12000a}
+.overlay{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;
+  justify-content:center;gap:16px;background:rgba(5,4,12,.88);text-align:center;padding:20px}
+.overlay.show{display:flex}
+.overlay p{font-family:var(--pixel);font-size:15px;line-height:1.9}
+.overlay small{color:var(--dim);font-size:13px;display:block;margin-top:6px}
+.overlay button{font-family:var(--pixel);font-size:10px;border:0;cursor:pointer;
+  background:var(--neon);color:#12000a;padding:13px 18px}
+.overlay button:hover{background:var(--volt);color:var(--void)}
+</style>
+</head>
+<body>
+
+<div>
+  <h1>CRUCE PELIGROSO</h1>
+  <div class="stage">
+    <canvas id="cv" width="616" height="616"></canvas>
+    <div class="overlay show" id="over">
+      <p id="overTitle">CRUCE PELIGROSO</p>
+      <small id="overText">Cruza el tráfico y el río hasta las cinco casillas de arriba</small>
+      <button id="overBtn">EMPEZAR</button>
+    </div>
+  </div>
+</div>
+
+<div class="side">
+  <div class="box"><h2>PUNTOS</h2><div class="val" id="score">0</div></div>
+  <div class="box"><h2>CASAS</h2><div class="val" id="casas">0 / 5</div></div>
+  <div class="box"><h2>VIDAS</h2><div class="val" id="vidas">3</div></div>
+  <div class="box">
+    <h2>CONTROLES</h2>
+    <div class="keys">
+      <b>← ↑ → ↓</b> saltar<br>
+      <b>W A S D</b> también<br>
+      <b>P</b> pausa
+    </div>
+  </div>
+  <div class="box">
+    <h2>REGLAS</h2>
+    <div class="keys">En el agua solo se sobrevive encima de un tronco. Cada casa ocupada da 50 puntos y te devuelve al inicio.</div>
+  </div>
+  <a class="back" href="../04-arcade-vault/index.html">&lt; VOLVER AL SALÓN</a>
+</div>
+
+<script src="../04-arcade-vault/salon.js"></script>
+<script>
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const CELDA = 44;
+const COLS = 14, FILAS = 14;
+const W = cv.width, H = cv.height;
+
+/* Mapa por filas, de arriba abajo:
+   0 casas · 1-5 río · 6 mediana · 7-11 carretera · 12-13 acera */
+const FILA_CASAS = 0;
+const RIO = [1, 2, 3, 4, 5];
+const MEDIANA = 6;
+const CARRETERA = [7, 8, 9, 10, 11];
+const INICIO = { col: 7, fila: 13 };
+
+const CARRILES = {
+  1:  { dir: -1, vel: 62,  largo: 3, hueco: 5.4 },
+  2:  { dir:  1, vel: 46,  largo: 2, hueco: 4.2 },
+  3:  { dir: -1, vel: 84,  largo: 4, hueco: 6.6 },
+  4:  { dir:  1, vel: 58,  largo: 2, hueco: 4.0 },
+  5:  { dir: -1, vel: 40,  largo: 3, hueco: 5.0 },
+  7:  { dir:  1, vel: 96,  largo: 1, hueco: 3.6 },
+  8:  { dir: -1, vel: 128, largo: 1, hueco: 4.4 },
+  9:  { dir:  1, vel: 74,  largo: 2, hueco: 4.8 },
+  10: { dir: -1, vel: 152, largo: 1, hueco: 5.2 },
+  11: { dir:  1, vel: 88,  largo: 2, hueco: 4.0 },
+};
+
+const COLORES_COCHE = ['#ff2e88', '#ffb020', '#7c6bff', '#ff5a5a', '#35f0d0'];
+
+let rana, moviles, casas, score, vidas, estado, masAlto;
+
+const el = {
+  score: document.getElementById('score'),
+  casas: document.getElementById('casas'),
+  vidas: document.getElementById('vidas'),
+  over: document.getElementById('over'),
+  overTitle: document.getElementById('overTitle'),
+  overText: document.getElementById('overText'),
+  overBtn: document.getElementById('overBtn'),
+};
+
+function crearMoviles(){
+  const lista = [];
+  for(const fila of Object.keys(CARRILES)){
+    const f = +fila;
+    const c = CARRILES[f];
+    const paso = (c.largo + c.hueco) * CELDA;
+    const cuantos = Math.ceil((W + paso) / paso);
+    for(let i = 0; i < cuantos; i++){
+      lista.push({
+        fila: f,
+        x: i * paso + (f * 37) % paso,
+        w: c.largo * CELDA,
+        dir: c.dir,
+        vel: c.vel,
+        tronco: RIO.includes(f),
+        color: COLORES_COCHE[(f + i) % COLORES_COCHE.length],
+      });
+    }
+  }
+  return lista;
+}
+
+function colocarRana(){
+  rana = { col: INICIO.col, fila: INICIO.fila, x: INICIO.col * CELDA, sobre: null };
+  masAlto = INICIO.fila;
+}
+
+function arrancar(){
+  score = 0; vidas = 3;
+  casas = [false, false, false, false, false];
+  moviles = crearMoviles();
+  colocarRana();
+  estado = 'jugando';
+  el.over.classList.remove('show');
+  pintarHud();
+}
+
+function pintarHud(){
+  el.score.textContent = score;
+  el.casas.textContent = casas.filter(Boolean).length + ' / 5';
+  el.vidas.textContent = vidas;
+}
+
+function morir(motivo){
+  vidas--;
+  pintarHud();
+  if(vidas <= 0){
+    estado = 'fin';
+    window.Hall && Hall.registrar('15-cruce', score, { unidad: 'pts', etiqueta: casas.filter(Boolean).length + ' casas' });
+    el.overTitle.textContent = 'GAME OVER';
+    el.overText.textContent = motivo + ' · ' + score + ' puntos';
+    el.overBtn.textContent = 'OTRA PARTIDA';
+    el.over.classList.add('show');
+    return;
+  }
+  colocarRana();
+}
+
+function ganar(){
+  estado = 'fin';
+  window.Hall && Hall.registrar('15-cruce', score, { unidad: 'pts', etiqueta: 'las 5 casas' });
+  el.overTitle.textContent = 'TODAS EN CASA';
+  el.overText.textContent = score + ' puntos con ' + vidas + ' vidas de sobra';
+  el.overBtn.textContent = 'OTRA PARTIDA';
+  el.over.classList.add('show');
+}
+
+/* Las casas están en cinco huecos de la fila de arriba. */
+function huecoCasa(col){
+  const huecos = [1, 4, 7, 10, 13];   // columnas centrales de cada casa
+  return huecos.indexOf(col);
+}
+
+function mover(dcol, dfila){
+  if(estado !== 'jugando') return;
+
+  const nuevaFila = rana.fila + dfila;
+  if(nuevaFila < 0 || nuevaFila >= FILAS) return;
+
+  let nuevaCol = Math.round(rana.x / CELDA) + dcol;
+  nuevaCol = Math.max(0, Math.min(COLS - 1, nuevaCol));
+
+  rana.fila = nuevaFila;
+  rana.col = nuevaCol;
+  rana.x = nuevaCol * CELDA;
+  rana.sobre = null;
+
+  if(dfila < 0 && nuevaFila < masAlto){
+    masAlto = nuevaFila;
+    score += 10;
+  }
+
+  if(nuevaFila === FILA_CASAS){
+    const h = huecoCasa(nuevaCol);
+    if(h < 0 || casas[h]) return morir('Te estrellaste contra la orilla');
+    casas[h] = true;
+    score += 50;
+    pintarHud();
+    if(casas.every(Boolean)) return ganar();
+    colocarRana();
+    return;
+  }
+
+  pintarHud();
+}
+
+function actualizar(dt){
+  for(const m of moviles){
+    m.x += m.dir * m.vel * dt;
+    const paso = W + m.w + CELDA * 2;
+    if(m.dir > 0 && m.x > W + CELDA) m.x -= paso;
+    if(m.dir < 0 && m.x + m.w < -CELDA) m.x += paso;
+  }
+
+  if(estado !== 'jugando') return;
+
+  const f = rana.fila;
+
+  if(CARRETERA.includes(f)){
+    for(const m of moviles){
+      if(m.fila !== f) continue;
+      if(rana.x + CELDA - 8 > m.x && rana.x + 8 < m.x + m.w) return morir('Te pilló un coche');
+    }
+  }
+
+  if(RIO.includes(f)){
+    let encima = null;
+    for(const m of moviles){
+      if(m.fila !== f) continue;
+      const centro = rana.x + CELDA/2;
+      if(centro > m.x && centro < m.x + m.w){ encima = m; break; }
+    }
+    if(!encima) return morir('Te fuiste al agua');
+    rana.sobre = encima;
+    rana.x += encima.dir * encima.vel * dt;
+    if(rana.x < -CELDA/2 || rana.x > W - CELDA/2) return morir('El tronco te sacó del río');
+  }
+}
+
+function dibujar(){
+  // franjas del escenario
+  for(let f = 0; f < FILAS; f++){
+    let color = '#1b1830';
+    if(f === FILA_CASAS) color = '#0a2a1e';
+    else if(RIO.includes(f)) color = '#0b2340';
+    else if(f === MEDIANA) color = '#123024';
+    else if(CARRETERA.includes(f)) color = '#131120';
+    ctx.fillStyle = color;
+    ctx.fillRect(0, f * CELDA, W, CELDA);
+  }
+
+  // líneas discontinuas de la carretera
+  ctx.strokeStyle = 'rgba(233,229,255,.18)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([14, 16]);
+  for(const f of CARRETERA){
+    ctx.beginPath();
+    ctx.moveTo(0, f * CELDA + CELDA);
+    ctx.lineTo(W, f * CELDA + CELDA);
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // casas
+  const huecos = [1, 4, 7, 10, 13];
+  ctx.fillStyle = '#05140e';
+  ctx.fillRect(0, 0, W, CELDA);
+  huecos.forEach((col, i) => {
+    ctx.fillStyle = casas[i] ? '#35f0d0' : '#0d3d2c';
+    ctx.fillRect(col * CELDA + 3, 5, CELDA - 6, CELDA - 10);
+    if(casas[i]){
+      ctx.fillStyle = '#05140e';
+      ctx.beginPath();
+      ctx.arc(col * CELDA + CELDA/2, CELDA/2, 9, 0, Math.PI*2);
+      ctx.fill();
+    }
+  });
+
+  // troncos y coches
+  for(const m of moviles){
+    const y = m.fila * CELDA;
+    if(m.tronco){
+      ctx.fillStyle = '#6b4a2a';
+      ctx.fillRect(m.x, y + 7, m.w, CELDA - 14);
+      ctx.fillStyle = 'rgba(0,0,0,.30)';
+      for(let i = 1; i < m.w / CELDA; i++) ctx.fillRect(m.x + i * CELDA, y + 7, 2, CELDA - 14);
+    } else {
+      ctx.fillStyle = m.color;
+      ctx.fillRect(m.x, y + 8, m.w, CELDA - 16);
+      ctx.fillStyle = 'rgba(0,0,0,.45)';
+      ctx.fillRect(m.x + (m.dir > 0 ? m.w - 14 : 6), y + 13, 8, CELDA - 26);
+    }
+  }
+
+  // rana
+  const rx = rana.x, ry = rana.fila * CELDA;
+  ctx.fillStyle = '#7ce85c';
+  ctx.shadowColor = '#7ce85c'; ctx.shadowBlur = 10;
+  ctx.fillRect(rx + 9, ry + 9, CELDA - 18, CELDA - 18);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#05040c';
+  ctx.fillRect(rx + 14, ry + 14, 5, 5);
+  ctx.fillRect(rx + CELDA - 19, ry + 14, 5, 5);
+}
+
+const MAPA = {
+  arrowleft:[-1,0], a:[-1,0],
+  arrowright:[1,0], d:[1,0],
+  arrowup:[0,-1],   w:[0,-1],
+  arrowdown:[0,1],  s:[0,1],
+};
+
+document.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if(k === 'p'){
+    if(estado === 'jugando'){
+      estado = 'pausa';
+      el.overTitle.textContent = 'PAUSA';
+      el.overText.textContent = 'Pulsa P para seguir';
+      el.overBtn.textContent = 'REINICIAR';
+      el.over.classList.add('show');
+    } else if(estado === 'pausa'){
+      estado = 'jugando';
+      el.over.classList.remove('show');
+    }
+    return;
+  }
+  const m = MAPA[k];
+  if(!m) return;
+  e.preventDefault();
+  mover(m[0], m[1]);
+});
+
+el.overBtn.addEventListener('click', arrancar);
+
+score = 0; vidas = 3;
+casas = [false, false, false, false, false];
+moviles = crearMoviles();
+colocarRana();
+estado = 'menu';
+pintarHud();
+
+let ultimo = performance.now();
+function bucle(t){
+  const dt = Math.min(0.05, (t - ultimo) / 1000);
+  ultimo = t;
+  if(estado === 'jugando' || estado === 'menu') actualizar(dt);
+  dibujar();
+  requestAnimationFrame(bucle);
+}
+requestAnimationFrame(bucle);
+</script>
+
+</body>
+</html>

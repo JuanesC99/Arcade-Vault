@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bloques de Bolsillo</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🧱</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#07060d; --panel:#12101f; --panel2:#1b1830; --edge:#2e2a4a;
+  --ink:#e9e5ff; --dim:#8b83b4; --neon:#ff2e88; --volt:#35f0d0; --amber:#ffb020;
+  --pixel:'Press Start 2P', monospace;
+  --body:'Chakra Petch', 'Trebuchet MS', sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:var(--void); color:var(--ink); font-family:var(--body);
+  min-height:100vh; display:flex; align-items:center; justify-content:center;
+  padding:20px; gap:26px; flex-wrap:wrap;
+}
+body::before{
+  content:''; position:fixed; inset:0; z-index:99; pointer-events:none;
+  background:repeating-linear-gradient(to bottom, rgba(0,0,0,.22) 0 1px, transparent 1px 3px);
+}
+h1{font-family:var(--pixel); font-size:13px; letter-spacing:.5px; margin-bottom:18px;
+   text-shadow:2px 2px 0 var(--neon)}
+.stage{position:relative; border:1px solid var(--edge); background:#05040c;
+       box-shadow:0 0 0 6px var(--panel), 0 20px 60px rgba(0,0,0,.7)}
+canvas{display:block}
+.side{width:196px}
+.box{border:1px solid var(--edge); background:var(--panel); padding:13px 14px; margin-bottom:12px}
+.box h2{font-family:var(--pixel); font-size:9px; color:var(--volt); margin-bottom:9px}
+.box .val{font-family:var(--pixel); font-size:15px; color:var(--amber)}
+#next{display:block; margin:0 auto}
+.keys{font-size:12px; color:var(--dim); line-height:1.9}
+.keys b{color:var(--ink); font-weight:600}
+.back{display:inline-block; margin-top:4px; font-family:var(--pixel); font-size:8px;
+      color:var(--void); background:var(--volt); padding:9px 11px; text-decoration:none}
+.back:hover{background:var(--neon); color:#12000a}
+.overlay{
+  position:absolute; inset:0; display:none; flex-direction:column;
+  align-items:center; justify-content:center; gap:16px;
+  background:rgba(5,4,12,.88); text-align:center; padding:20px;
+}
+.overlay.show{display:flex}
+.overlay p{font-family:var(--pixel); font-size:15px; line-height:1.9}
+.overlay small{color:var(--dim); font-size:13px; display:block; margin-top:6px; font-family:var(--body)}
+.overlay button{
+  font-family:var(--pixel); font-size:10px; border:0; cursor:pointer;
+  background:var(--neon); color:#12000a; padding:13px 18px;
+}
+.overlay button:hover{background:var(--volt); color:var(--void)}
+</style>
+</head>
+<body>
+
+<div>
+  <h1>BLOQUES DE BOLSILLO</h1>
+  <div class="stage">
+    <canvas id="board" width="300" height="600"></canvas>
+    <div class="overlay" id="over">
+      <p id="overTitle">PAUSA</p>
+      <small id="overText">Pulsa P para seguir</small>
+      <button id="overBtn" style="display:none">OTRA PARTIDA</button>
+    </div>
+  </div>
+</div>
+
+<div class="side">
+  <div class="box"><h2>PUNTOS</h2><div class="val" id="score">0</div></div>
+  <div class="box"><h2>LÍNEAS</h2><div class="val" id="lines">0</div></div>
+  <div class="box"><h2>NIVEL</h2><div class="val" id="level">1</div></div>
+  <div class="box"><h2>SIGUIENTE</h2><canvas id="next" width="120" height="120"></canvas></div>
+  <div class="box">
+    <h2>CONTROLES</h2>
+    <div class="keys">
+      <b>← →</b> mover<br>
+      <b>↑</b> girar<br>
+      <b>↓</b> bajar rápido<br>
+      <b>Espacio</b> soltar<br>
+      <b>P</b> pausa
+    </div>
+  </div>
+  <a class="back" href="../04-arcade-vault/index.html">&lt; VOLVER AL SALÓN</a>
+</div>
+
+<script src="../04-arcade-vault/salon.js"></script>
+<script>
+const COLS = 10, ROWS = 20, CELL = 30;
+const board = document.getElementById('board');
+const ctx = board.getContext('2d');
+const nextCv = document.getElementById('next');
+const nctx = nextCv.getContext('2d');
+
+const PIEZAS = {
+  I: { color:'#35f0d0', celdas:[[0,1],[1,1],[2,1],[3,1]], w:4 },
+  J: { color:'#5b8cff', celdas:[[0,0],[0,1],[1,1],[2,1]], w:3 },
+  L: { color:'#ffb020', celdas:[[2,0],[0,1],[1,1],[2,1]], w:3 },
+  O: { color:'#ffe066', celdas:[[1,0],[2,0],[1,1],[2,1]], w:4 },
+  S: { color:'#7ce85c', celdas:[[1,0],[2,0],[0,1],[1,1]], w:3 },
+  T: { color:'#ff2e88', celdas:[[1,0],[0,1],[1,1],[2,1]], w:3 },
+  Z: { color:'#ff5a5a', celdas:[[0,0],[1,0],[1,1],[2,1]], w:3 },
+};
+const TIPOS = Object.keys(PIEZAS);
+
+let rejilla, pieza, siguiente, bolsa = [];
+let score = 0, lines = 0, level = 1;
+let caida = 0, intervalo = 0, estado = 'jugando';
+
+const el = {
+  score: document.getElementById('score'),
+  lines: document.getElementById('lines'),
+  level: document.getElementById('level'),
+  over: document.getElementById('over'),
+  overTitle: document.getElementById('overTitle'),
+  overText: document.getElementById('overText'),
+  overBtn: document.getElementById('overBtn'),
+};
+
+function vaciarRejilla(){
+  return Array.from({length:ROWS}, () => Array(COLS).fill(null));
+}
+
+// Bolsa de siete: cada pieza sale una vez antes de repetirse
+function sacarTipo(){
+  if(!bolsa.length){
+    bolsa = [...TIPOS];
+    for(let i = bolsa.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [bolsa[i], bolsa[j]] = [bolsa[j], bolsa[i]];
+    }
+  }
+  return bolsa.pop();
+}
+
+function crearPieza(tipo){
+  const base = PIEZAS[tipo];
+  return {
+    tipo,
+    color: base.color,
+    w: base.w,
+    celdas: base.celdas.map(c => [...c]),
+    x: Math.floor((COLS - base.w) / 2),
+    y: -1,
+  };
+}
+
+function celdasAbsolutas(p, dx = 0, dy = 0, celdas = p.celdas){
+  return celdas.map(([cx, cy]) => [p.x + cx + dx, p.y + cy + dy]);
+}
+
+function choca(p, dx = 0, dy = 0, celdas = p.celdas){
+  return celdasAbsolutas(p, dx, dy, celdas).some(([x, y]) =>
+    x < 0 || x >= COLS || y >= ROWS || (y >= 0 && rejilla[y][x])
+  );
+}
+
+function girar(p){
+  if(p.tipo === 'O') return p.celdas;
+  const n = p.w - 1;
+  return p.celdas.map(([x, y]) => [n - y, x]);
+}
+
+function intentarGiro(){
+  const giradas = girar(pieza);
+  // patadas: prueba en el sitio, a un lado, al otro y arriba
+  for(const [dx, dy] of [[0,0],[-1,0],[1,0],[-2,0],[2,0],[0,-1]]){
+    if(!choca(pieza, dx, dy, giradas)){
+      pieza.celdas = giradas;
+      pieza.x += dx;
+      pieza.y += dy;
+      return;
+    }
+  }
+}
+
+function fijar(){
+  for(const [x, y] of celdasAbsolutas(pieza)){
+    if(y < 0){ terminar(); return; }
+    rejilla[y][x] = pieza.color;
+  }
+  limpiarLineas();
+  nuevaPieza();
+}
+
+function limpiarLineas(){
+  let hechas = 0;
+  for(let y = ROWS - 1; y >= 0; y--){
+    if(rejilla[y].every(c => c)){
+      rejilla.splice(y, 1);
+      rejilla.unshift(Array(COLS).fill(null));
+      hechas++;
+      y++;
+    }
+  }
+  if(!hechas) return;
+  const premio = [0, 100, 300, 500, 800][hechas];
+  score += premio * level;
+  lines += hechas;
+  level = Math.floor(lines / 10) + 1;
+  intervalo = Math.max(90, 800 - (level - 1) * 65);
+  pintarHud();
+}
+
+function nuevaPieza(){
+  pieza = siguiente || crearPieza(sacarTipo());
+  siguiente = crearPieza(sacarTipo());
+  if(choca(pieza)) terminar();
+  dibujarSiguiente();
+}
+
+function terminar(){
+  estado = 'fin';
+  window.Hall && Hall.registrar('05-tetris', score, { unidad: 'pts', etiqueta: lines + ' líneas' });
+  el.overTitle.textContent = 'GAME OVER';
+  el.overText.textContent = 'Hiciste ' + score + ' puntos con ' + lines + ' líneas';
+  el.overBtn.style.display = 'block';
+  el.over.classList.add('show');
+}
+
+function pintarHud(){
+  el.score.textContent = score;
+  el.lines.textContent = lines;
+  el.level.textContent = level;
+}
+
+function bloque(c, x, y, tam){
+  c.fillStyle = '#000';
+  c.fillRect(x, y, tam, tam);
+  c.fillStyle = pintaActual;
+  c.fillRect(x + 1, y + 1, tam - 2, tam - 2);
+  c.fillStyle = 'rgba(255,255,255,.28)';
+  c.fillRect(x + 1, y + 1, tam - 2, 3);
+  c.fillStyle = 'rgba(0,0,0,.3)';
+  c.fillRect(x + 1, y + tam - 4, tam - 2, 3);
+}
+let pintaActual = '#fff';
+
+function dibujar(){
+  ctx.fillStyle = '#05040c';
+  ctx.fillRect(0, 0, board.width, board.height);
+
+  // rejilla de fondo
+  ctx.strokeStyle = 'rgba(46,42,74,.5)';
+  ctx.lineWidth = 1;
+  for(let x = 1; x < COLS; x++){
+    ctx.beginPath(); ctx.moveTo(x * CELL + .5, 0); ctx.lineTo(x * CELL + .5, board.height); ctx.stroke();
+  }
+  for(let y = 1; y < ROWS; y++){
+    ctx.beginPath(); ctx.moveTo(0, y * CELL + .5); ctx.lineTo(board.width, y * CELL + .5); ctx.stroke();
+  }
+
+  for(let y = 0; y < ROWS; y++)
+    for(let x = 0; x < COLS; x++)
+      if(rejilla[y][x]){ pintaActual = rejilla[y][x]; bloque(ctx, x * CELL, y * CELL, CELL); }
+
+  if(pieza && estado !== 'fin'){
+    // sombra de aterrizaje
+    let d = 0;
+    while(!choca(pieza, 0, d + 1)) d++;
+    ctx.globalAlpha = .18;
+    pintaActual = pieza.color;
+    for(const [x, y] of celdasAbsolutas(pieza, 0, d))
+      if(y >= 0) bloque(ctx, x * CELL, y * CELL, CELL);
+    ctx.globalAlpha = 1;
+
+    for(const [x, y] of celdasAbsolutas(pieza))
+      if(y >= 0) bloque(ctx, x * CELL, y * CELL, CELL);
+  }
+}
+
+function dibujarSiguiente(){
+  nctx.fillStyle = '#12101f';
+  nctx.fillRect(0, 0, nextCv.width, nextCv.height);
+  if(!siguiente) return;
+  const tam = 24;
+  const xs = siguiente.celdas.map(c => c[0]);
+  const ys = siguiente.celdas.map(c => c[1]);
+  const ox = (nextCv.width - (Math.max(...xs) - Math.min(...xs) + 1) * tam) / 2 - Math.min(...xs) * tam;
+  const oy = (nextCv.height - (Math.max(...ys) - Math.min(...ys) + 1) * tam) / 2 - Math.min(...ys) * tam;
+  pintaActual = siguiente.color;
+  for(const [x, y] of siguiente.celdas) bloque(nctx, ox + x * tam, oy + y * tam, tam);
+}
+
+function bajar(){
+  if(choca(pieza, 0, 1)) fijar();
+  else pieza.y++;
+}
+
+function soltar(){
+  while(!choca(pieza, 0, 1)){ pieza.y++; score += 2; }
+  fijar();
+  pintarHud();
+}
+
+document.addEventListener('keydown', e => {
+  if(e.key === 'p' || e.key === 'P'){
+    if(estado === 'jugando'){
+      estado = 'pausa';
+      el.overTitle.textContent = 'PAUSA';
+      el.overText.textContent = 'Pulsa P para seguir';
+      el.overBtn.style.display = 'none';
+      el.over.classList.add('show');
+    } else if(estado === 'pausa'){
+      estado = 'jugando';
+      el.over.classList.remove('show');
+    }
+    return;
+  }
+  if(estado !== 'jugando') return;
+  if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key)) e.preventDefault();
+  if(e.key === 'ArrowLeft'  && !choca(pieza, -1, 0)) pieza.x--;
+  if(e.key === 'ArrowRight' && !choca(pieza,  1, 0)) pieza.x++;
+  if(e.key === 'ArrowUp') intentarGiro();
+  if(e.key === 'ArrowDown'){ bajar(); score++; pintarHud(); caida = 0; }
+  if(e.key === ' ') soltar();
+});
+
+el.overBtn.addEventListener('click', arrancar);
+
+function arrancar(){
+  rejilla = vaciarRejilla();
+  bolsa = [];
+  siguiente = null;
+  score = 0; lines = 0; level = 1;
+  intervalo = 800; caida = 0;
+  estado = 'jugando';
+  el.over.classList.remove('show');
+  el.overBtn.style.display = 'none';
+  nuevaPieza();
+  pintarHud();
+}
+
+let ultimo = performance.now();
+function bucle(t){
+  const dt = t - ultimo;
+  ultimo = t;
+  if(estado === 'jugando'){
+    caida += dt;
+    if(caida >= intervalo){ caida = 0; bajar(); }
+  }
+  dibujar();
+  requestAnimationFrame(bucle);
+}
+
+arrancar();
+requestAnimationFrame(bucle);
+</script>
+
+</body>
+</html>

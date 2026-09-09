@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Campo Minado</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>💣</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#07060d; --panel:#12101f; --panel2:#1b1830; --edge:#2e2a4a;
+  --ink:#e9e5ff; --dim:#8b83b4; --neon:#ff2e88; --volt:#35f0d0; --amber:#ffb020;
+  --pixel:'Press Start 2P', monospace;
+  --body:'Chakra Petch', 'Trebuchet MS', sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--void);color:var(--ink);font-family:var(--body);min-height:100vh;
+     display:flex;align-items:center;justify-content:center;padding:20px;gap:26px;flex-wrap:wrap}
+body::before{content:'';position:fixed;inset:0;z-index:99;pointer-events:none;
+  background:repeating-linear-gradient(to bottom, rgba(0,0,0,.22) 0 1px, transparent 1px 3px)}
+h1{font-family:var(--pixel);font-size:13px;margin-bottom:18px;text-shadow:2px 2px 0 var(--neon)}
+.stage{position:relative;border:1px solid var(--edge);background:#05040c;padding:12px;
+       box-shadow:0 0 0 6px var(--panel), 0 20px 60px rgba(0,0,0,.7)}
+#tablero{display:grid;gap:2px;user-select:none}
+.c{
+  width:30px;height:30px;display:flex;align-items:center;justify-content:center;
+  background:var(--panel2);border:1px solid var(--edge);cursor:pointer;
+  font-family:var(--pixel);font-size:11px;transition:background .1s;
+}
+.c:hover{background:#262046}
+.c.abierta{background:#0c0a16;cursor:default;border-color:#211d38}
+.c.bandera{color:var(--amber);font-family:var(--body);font-size:17px;font-weight:700}
+.c.mina{background:var(--neon);color:#12000a;font-family:var(--body);font-size:17px}
+.c.n1{color:#5b8cff}.c.n2{color:#7ce85c}.c.n3{color:#ff5a5a}.c.n4{color:#a86bff}
+.c.n5{color:#ffb020}.c.n6{color:#35f0d0}.c.n7{color:#e9e5ff}.c.n8{color:#8b83b4}
+.side{width:196px}
+.box{border:1px solid var(--edge);background:var(--panel);padding:13px 14px;margin-bottom:12px}
+.box h2{font-family:var(--pixel);font-size:9px;color:var(--volt);margin-bottom:9px}
+.box .val{font-family:var(--pixel);font-size:15px;color:var(--amber)}
+.keys{font-size:12px;color:var(--dim);line-height:1.9}
+.keys b{color:var(--ink);font-weight:600}
+.niveles{display:flex;gap:5px}
+.niveles button{
+  flex:1;font-family:var(--body);font-weight:700;font-size:11px;letter-spacing:.6px;
+  text-transform:uppercase;cursor:pointer;border:1px solid var(--edge);
+  background:transparent;color:var(--dim);padding:6px 2px;
+}
+.niveles button.on{background:var(--volt);border-color:var(--volt);color:var(--void)}
+.back{display:inline-block;margin-top:4px;font-family:var(--pixel);font-size:8px;
+      color:var(--void);background:var(--volt);padding:9px 11px;text-decoration:none}
+.back:hover{background:var(--neon);color:#12000a}
+.overlay{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;
+  justify-content:center;gap:16px;background:rgba(5,4,12,.9);text-align:center;padding:20px}
+.overlay.show{display:flex}
+.overlay p{font-family:var(--pixel);font-size:14px;line-height:1.9}
+.overlay small{color:var(--dim);font-size:13px;display:block;margin-top:6px}
+.overlay button{font-family:var(--pixel);font-size:10px;border:0;cursor:pointer;
+  background:var(--neon);color:#12000a;padding:13px 18px}
+.overlay button:hover{background:var(--volt);color:var(--void)}
+</style>
+</head>
+<body>
+
+<div>
+  <h1>CAMPO MINADO</h1>
+  <div class="stage">
+    <div id="tablero"></div>
+    <div class="overlay" id="over">
+      <p id="overTitle">BOOM</p>
+      <small id="overText"></small>
+      <button id="overBtn">OTRA PARTIDA</button>
+    </div>
+  </div>
+</div>
+
+<div class="side">
+  <div class="box"><h2>MINAS</h2><div class="val" id="minas">0</div></div>
+  <div class="box"><h2>TIEMPO</h2><div class="val" id="tiempo">0</div></div>
+  <div class="box">
+    <h2>DIFICULTAD</h2>
+    <div class="niveles">
+      <button data-n="facil" class="on">Fácil</button>
+      <button data-n="medio">Medio</button>
+      <button data-n="duro">Duro</button>
+    </div>
+  </div>
+  <div class="box">
+    <h2>CONTROLES</h2>
+    <div class="keys">
+      <b>Clic</b> descubrir<br>
+      <b>Clic derecho</b> bandera<br>
+      <b>R</b> nueva partida
+    </div>
+  </div>
+  <div class="box">
+    <h2>REGLAS</h2>
+    <div class="keys">La primera casilla nunca es mina. El número dice cuántas minas tocan esa casilla.</div>
+  </div>
+  <a class="back" href="../04-arcade-vault/index.html">&lt; VOLVER AL SALÓN</a>
+</div>
+
+<script src="../04-arcade-vault/salon.js"></script>
+<script>
+const NIVELES = {
+  facil: { cols: 9,  filas: 9,  minas: 10 },
+  medio: { cols: 14, filas: 12, minas: 28 },
+  duro:  { cols: 18, filas: 14, minas: 48 },
+};
+
+const tablero = document.getElementById('tablero');
+let nivel = 'facil', celdas = [], cols, filas, totalMinas;
+let sembrado = false, estado = 'jugando', banderas = 0, t0 = 0, cron = null;
+
+const el = {
+  minas: document.getElementById('minas'),
+  tiempo: document.getElementById('tiempo'),
+  over: document.getElementById('over'),
+  overTitle: document.getElementById('overTitle'),
+  overText: document.getElementById('overText'),
+  overBtn: document.getElementById('overBtn'),
+};
+
+const idx = (x, y) => y * cols + x;
+const dentro = (x, y) => x >= 0 && y >= 0 && x < cols && y < filas;
+
+function vecinas(x, y){
+  const v = [];
+  for(let dy = -1; dy <= 1; dy++)
+    for(let dx = -1; dx <= 1; dx++)
+      if((dx || dy) && dentro(x + dx, y + dy)) v.push(celdas[idx(x + dx, y + dy)]);
+  return v;
+}
+
+function nueva(){
+  const cfg = NIVELES[nivel];
+  cols = cfg.cols; filas = cfg.filas; totalMinas = cfg.minas;
+  sembrado = false; estado = 'jugando'; banderas = 0;
+  clearInterval(cron); cron = null;
+  el.tiempo.textContent = '0';
+  el.minas.textContent = totalMinas;
+  el.over.classList.remove('show');
+
+  celdas = [];
+  tablero.innerHTML = '';
+  tablero.style.gridTemplateColumns = `repeat(${cols}, 30px)`;
+  for(let y = 0; y < filas; y++){
+    for(let x = 0; x < cols; x++){
+      const div = document.createElement('div');
+      div.className = 'c';
+      div.dataset.x = x; div.dataset.y = y;
+      tablero.appendChild(div);
+      celdas.push({ x, y, div, mina:false, abierta:false, bandera:false, num:0 });
+    }
+  }
+}
+
+function sembrar(sinMinaX, sinMinaY){
+  const prohibidas = new Set([idx(sinMinaX, sinMinaY)]);
+  vecinas(sinMinaX, sinMinaY).forEach(c => prohibidas.add(idx(c.x, c.y)));
+
+  let puestas = 0;
+  while(puestas < totalMinas){
+    const i = Math.floor(Math.random() * celdas.length);
+    if(prohibidas.has(i) || celdas[i].mina) continue;
+    celdas[i].mina = true;
+    puestas++;
+  }
+  for(const c of celdas)
+    c.num = vecinas(c.x, c.y).filter(v => v.mina).length;
+
+  sembrado = true;
+  t0 = Date.now();
+  cron = setInterval(() => {
+    if(estado === 'jugando') el.tiempo.textContent = Math.floor((Date.now() - t0) / 1000);
+  }, 250);
+}
+
+function pintar(c){
+  c.div.className = 'c';
+  if(c.bandera && !c.abierta){ c.div.classList.add('bandera'); c.div.textContent = '⚑'; return; }
+  if(!c.abierta){ c.div.textContent = ''; return; }
+  c.div.classList.add('abierta');
+  if(c.mina){ c.div.classList.add('mina'); c.div.textContent = '✸'; return; }
+  c.div.textContent = c.num || '';
+  if(c.num) c.div.classList.add('n' + c.num);
+}
+
+function abrir(c){
+  if(c.abierta || c.bandera || estado !== 'jugando') return;
+  c.abierta = true;
+  pintar(c);
+  if(c.mina) return perder(c);
+  if(c.num === 0) vecinas(c.x, c.y).forEach(abrir);
+}
+
+function perder(cBoom){
+  estado = 'fin';
+  clearInterval(cron);
+  for(const c of celdas) if(c.mina){ c.abierta = true; pintar(c); }
+  cBoom.div.style.background = '#ff5a5a';
+  el.overTitle.textContent = 'BOOM';
+  el.overText.textContent = 'Pisaste una mina en ' + el.tiempo.textContent + ' segundos';
+  el.over.classList.add('show');
+}
+
+function comprobarVictoria(){
+  const faltan = celdas.filter(c => !c.mina && !c.abierta).length;
+  if(faltan) return;
+  estado = 'fin';
+  clearInterval(cron);
+  for(const c of celdas) if(c.mina && !c.bandera){ c.bandera = true; pintar(c); }
+  window.Hall && Hall.registrar('11-campo-minado', Number(el.tiempo.textContent), { unidad: 's', menorEsMejor: true, etiqueta: nivel });
+  el.overTitle.textContent = 'CAMPO LIMPIO';
+  el.overText.textContent = 'Las ' + totalMinas + ' minas en ' + el.tiempo.textContent + ' segundos';
+  el.over.classList.add('show');
+}
+
+tablero.addEventListener('click', e => {
+  const div = e.target.closest('.c');
+  if(!div || estado !== 'jugando') return;
+  const c = celdas[idx(+div.dataset.x, +div.dataset.y)];
+  if(!sembrado) sembrar(c.x, c.y);
+  abrir(c);
+  if(estado === 'jugando') comprobarVictoria();
+});
+
+tablero.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  const div = e.target.closest('.c');
+  if(!div || estado !== 'jugando') return;
+  const c = celdas[idx(+div.dataset.x, +div.dataset.y)];
+  if(c.abierta) return;
+  c.bandera = !c.bandera;
+  banderas += c.bandera ? 1 : -1;
+  el.minas.textContent = Math.max(0, totalMinas - banderas);
+  pintar(c);
+});
+
+document.querySelectorAll('.niveles button').forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.niveles button').forEach(o => o.classList.remove('on'));
+    b.classList.add('on');
+    nivel = b.dataset.n;
+    nueva();
+  });
+});
+
+document.addEventListener('keydown', e => {
+  if(e.key.toLowerCase() === 'r') nueva();
+});
+
+el.overBtn.addEventListener('click', nueva);
+
+nueva();
+</script>
+
+</body>
+</html>

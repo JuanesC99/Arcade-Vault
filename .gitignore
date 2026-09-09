@@ -1,0 +1,10 @@
+# Basura del sistema
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporales de audio del generador de sonidos
+*.wav
+
+# Dependencias, por si alguna vez entra alguna
+node_modules/

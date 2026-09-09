@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cable Suelto</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🐍</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#07060d; --panel:#12101f; --edge:#2e2a4a;
+  --ink:#e9e5ff; --dim:#8b83b4; --neon:#ff2e88; --volt:#35f0d0; --amber:#ffb020;
+  --pixel:'Press Start 2P', monospace;
+  --body:'Chakra Petch', 'Trebuchet MS', sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:var(--void); color:var(--ink); font-family:var(--body);
+  min-height:100vh; display:flex; align-items:center; justify-content:center;
+  padding:20px; gap:26px; flex-wrap:wrap;
+}
+body::before{
+  content:''; position:fixed; inset:0; z-index:99; pointer-events:none;
+  background:repeating-linear-gradient(to bottom, rgba(0,0,0,.22) 0 1px, transparent 1px 3px);
+}
+h1{font-family:var(--pixel); font-size:13px; margin-bottom:18px; text-shadow:2px 2px 0 var(--volt)}
+.stage{position:relative; border:1px solid var(--edge); background:#05040c;
+       box-shadow:0 0 0 6px var(--panel), 0 20px 60px rgba(0,0,0,.7)}
+canvas{display:block}
+.side{width:196px}
+.box{border:1px solid var(--edge); background:var(--panel); padding:13px 14px; margin-bottom:12px}
+.box h2{font-family:var(--pixel); font-size:9px; color:var(--volt); margin-bottom:9px}
+.box .val{font-family:var(--pixel); font-size:15px; color:var(--amber)}
+.keys{font-size:12px; color:var(--dim); line-height:1.9}
+.keys b{color:var(--ink); font-weight:600}
+.back{display:inline-block; margin-top:4px; font-family:var(--pixel); font-size:8px;
+      color:var(--void); background:var(--volt); padding:9px 11px; text-decoration:none}
+.back:hover{background:var(--neon); color:#12000a}
+.overlay{
+  position:absolute; inset:0; display:none; flex-direction:column;
+  align-items:center; justify-content:center; gap:16px;
+  background:rgba(5,4,12,.88); text-align:center; padding:20px;
+}
+.overlay.show{display:flex}
+.overlay p{font-family:var(--pixel); font-size:15px; line-height:1.9}
+.overlay small{color:var(--dim); font-size:13px; display:block; margin-top:6px}
+.overlay button{
+  font-family:var(--pixel); font-size:10px; border:0; cursor:pointer;
+  background:var(--neon); color:#12000a; padding:13px 18px;
+}
+.overlay button:hover{background:var(--volt); color:var(--void)}
+</style>
+</head>
+<body>
+
+<div>
+  <h1>CABLE SUELTO</h1>
+  <div class="stage">
+    <canvas id="cv" width="560" height="560"></canvas>
+    <div class="overlay show" id="over">
+      <p id="overTitle">CABLE SUELTO</p>
+      <small id="overText">Recoge chispas sin morderte la cola</small>
+      <button id="overBtn">EMPEZAR</button>
+    </div>
+  </div>
+</div>
+
+<div class="side">
+  <div class="box"><h2>PUNTOS</h2><div class="val" id="score">0</div></div>
+  <div class="box"><h2>RÉCORD</h2><div class="val" id="best">0</div></div>
+  <div class="box"><h2>LARGO</h2><div class="val" id="len">3</div></div>
+  <div class="box">
+    <h2>CONTROLES</h2>
+    <div class="keys">
+      <b>← ↑ → ↓</b> girar<br>
+      <b>W A S D</b> también<br>
+      <b>P</b> pausa
+    </div>
+  </div>
+  <div class="box">
+    <h2>REGLAS</h2>
+    <div class="keys">
+      Chocar con el muro o contigo termina la partida. Cada chispa alarga el cable y acelera un poco.
+    </div>
+  </div>
+  <a class="back" href="../04-arcade-vault/index.html">&lt; VOLVER AL SALÓN</a>
+</div>
+
+<script src="../04-arcade-vault/salon.js"></script>
+<script>
+const CELDA = 20;
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const COLS = cv.width / CELDA, FILAS = cv.height / CELDA;
+
+let cable, dir, colaDir, chispa, score, best = 0, intervalo, acumulado, estado;
+
+const el = {
+  score: document.getElementById('score'),
+  best: document.getElementById('best'),
+  len: document.getElementById('len'),
+  over: document.getElementById('over'),
+  overTitle: document.getElementById('overTitle'),
+  overText: document.getElementById('overText'),
+  overBtn: document.getElementById('overBtn'),
+};
+
+function nuevaChispa(){
+  let c;
+  do {
+    c = { x: Math.floor(Math.random() * COLS), y: Math.floor(Math.random() * FILAS) };
+  } while(cable.some(s => s.x === c.x && s.y === c.y));
+  return c;
+}
+
+function arrancar(){
+  cable = [{x:8, y:14}, {x:7, y:14}, {x:6, y:14}];
+  dir = {x:1, y:0};
+  colaDir = {x:1, y:0};
+  chispa = nuevaChispa();
+  score = 0;
+  intervalo = 130;
+  acumulado = 0;
+  estado = 'jugando';
+  el.over.classList.remove('show');
+  pintarHud();
+}
+
+function pintarHud(){
+  el.score.textContent = score;
+  el.best.textContent = best;
+  el.len.textContent = cable.length;
+}
+
+function morir(){
+  estado = 'fin';
+  best = Math.max(best, score);
+  window.Hall && Hall.registrar('06-snake', score, { unidad: 'pts', etiqueta: 'largo ' + cable.length });
+  el.overTitle.textContent = 'GAME OVER';
+  el.overText.textContent = score + ' puntos con un cable de ' + cable.length;
+  el.overBtn.textContent = 'OTRA PARTIDA';
+  el.over.classList.add('show');
+  pintarHud();
+}
+
+function paso(){
+  colaDir = dir;
+  const cabeza = { x: cable[0].x + dir.x, y: cable[0].y + dir.y };
+
+  if(cabeza.x < 0 || cabeza.y < 0 || cabeza.x >= COLS || cabeza.y >= FILAS) return morir();
+  if(cable.some(s => s.x === cabeza.x && s.y === cabeza.y)) return morir();
+
+  cable.unshift(cabeza);
+
+  if(cabeza.x === chispa.x && cabeza.y === chispa.y){
+    score += 10;
+    chispa = nuevaChispa();
+    intervalo = Math.max(60, intervalo - 3);
+  } else {
+    cable.pop();
+  }
+  pintarHud();
+}
+
+function dibujar(){
+  ctx.fillStyle = '#05040c';
+  ctx.fillRect(0, 0, cv.width, cv.height);
+
+  ctx.strokeStyle = 'rgba(46,42,74,.45)';
+  ctx.lineWidth = 1;
+  for(let i = 1; i < COLS; i++){
+    ctx.beginPath(); ctx.moveTo(i * CELDA + .5, 0); ctx.lineTo(i * CELDA + .5, cv.height); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, i * CELDA + .5); ctx.lineTo(cv.width, i * CELDA + .5); ctx.stroke();
+  }
+
+  // chispa
+  const pulso = 2 + Math.sin(performance.now() / 160) * 1.6;
+  ctx.fillStyle = '#ffb020';
+  ctx.shadowColor = '#ffb020';
+  ctx.shadowBlur = 14;
+  ctx.fillRect(chispa.x * CELDA + 4 - pulso / 2, chispa.y * CELDA + 4 - pulso / 2,
+               CELDA - 8 + pulso, CELDA - 8 + pulso);
+  ctx.shadowBlur = 0;
+
+  // cable
+  cable.forEach((s, i) => {
+    const t = i / Math.max(1, cable.length - 1);
+    ctx.fillStyle = i === 0 ? '#ff2e88'
+      : `rgb(${Math.round(53 + t * 20)}, ${Math.round(240 - t * 120)}, ${Math.round(208 - t * 60)})`;
+    ctx.fillRect(s.x * CELDA + 2, s.y * CELDA + 2, CELDA - 4, CELDA - 4);
+    if(i === 0){
+      ctx.fillStyle = '#fff';
+      const ox = dir.x * 4, oy = dir.y * 4;
+      ctx.fillRect(s.x * CELDA + 7 + ox, s.y * CELDA + 7 + oy, 3, 3);
+    }
+  });
+}
+
+const OPUESTO = (a, b) => a.x === -b.x && a.y === -b.y;
+
+document.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if(k === 'p'){
+    if(estado === 'jugando'){
+      estado = 'pausa';
+      el.overTitle.textContent = 'PAUSA';
+      el.overText.textContent = 'Pulsa P para seguir';
+      el.overBtn.textContent = 'REINICIAR';
+      el.over.classList.add('show');
+    } else if(estado === 'pausa'){
+      estado = 'jugando';
+      el.over.classList.remove('show');
+    }
+    return;
+  }
+  if(estado !== 'jugando') return;
+
+  const mapa = {
+    arrowleft:{x:-1,y:0}, a:{x:-1,y:0},
+    arrowright:{x:1,y:0},  d:{x:1,y:0},
+    arrowup:{x:0,y:-1},    w:{x:0,y:-1},
+    arrowdown:{x:0,y:1},   s:{x:0,y:1},
+  };
+  const nueva = mapa[k];
+  if(!nueva) return;
+  e.preventDefault();
+  // no se permite el giro de 180 grados sobre la dirección ya aplicada
+  if(OPUESTO(nueva, colaDir)) return;
+  dir = nueva;
+});
+
+el.overBtn.addEventListener('click', arrancar);
+
+let ultimo = performance.now();
+function bucle(t){
+  const dt = t - ultimo;
+  ultimo = t;
+  if(estado === 'jugando'){
+    acumulado += dt;
+    while(acumulado >= intervalo){ acumulado -= intervalo; paso(); }
+  }
+  dibujar();
+  requestAnimationFrame(bucle);
+}
+
+cable = [{x:8, y:14}, {x:7, y:14}, {x:6, y:14}];
+dir = {x:1, y:0};
+colaDir = {x:1, y:0};
+chispa = nuevaChispa();
+score = 0; intervalo = 130; acumulado = 0; estado = 'menu';
+pintarHud();
+requestAnimationFrame(bucle);
+</script>
+
+</body>
+</html>

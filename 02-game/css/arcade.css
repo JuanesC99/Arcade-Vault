@@ -1,0 +1,191 @@
+/* ============================================================
+   arcade.css — piel de salón recreativo para Metro Rush.
+
+   Se carga DESPUÉS de style.css y solo redefine paleta, tipografía
+   y disposición. No toca la lógica del juego ni los ids que usa el
+   JavaScript.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Chakra+Petch:wght@400;500;600;700&display=swap');
+
+:root{
+  /* paleta del salón */
+  --bg:       #07060d;
+  --ink:      #e9e5ff;
+  --muted:    #8b83b4;
+  --accent:   #35f0d0;
+  --accent-2: #ff2e88;
+  --cyan:     #35f0d0;
+  --violet:   #7c6bff;
+  --green:    #7ce85c;
+  --panel:    #12101f;
+  --stroke:   #2e2a4a;
+  --shadow:   0 20px 60px rgba(0,0,0,.7);
+  --font:     'Chakra Petch', 'Trebuchet MS', sans-serif;
+
+  --void:   #07060d;
+  --panel2: #1b1830;
+  --edge:   #2e2a4a;
+  --dim:    #8b83b4;
+  --neon:   #ff2e88;
+  --volt:   #35f0d0;
+  --amber:  #ffb020;
+  --pixel:  'Press Start 2P', monospace;
+}
+
+/* ---------- la página deja de ser pantalla completa ---------- */
+html, body{
+  height:auto;
+  min-height:100vh;
+  overflow:auto;
+  touch-action:auto;
+}
+
+body{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:26px;
+  flex-wrap:wrap;
+  padding:20px;
+}
+
+/* líneas de tubo catódico, como en las demás cabinas */
+body::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  z-index:99;
+  pointer-events:none;
+  background:repeating-linear-gradient(to bottom, rgba(0,0,0,.22) 0 1px, transparent 1px 3px);
+}
+
+/* ---------- la cabina ---------- */
+.cabina-titulo{
+  font-family:var(--pixel);
+  font-size:13px;
+  margin-bottom:18px;
+  color:var(--ink);
+  text-shadow:2px 2px 0 var(--amber);
+}
+
+#app{
+  position:relative;
+  inset:auto;
+  width:760px;
+  height:560px;
+  max-width:100%;
+  display:block;
+  border:1px solid var(--edge);
+  background:#05040c;
+  box-shadow:0 0 0 6px var(--panel), var(--shadow);
+  overflow:hidden;
+}
+
+#game{
+  width:100%;
+  height:100%;
+}
+
+/* ---------- panel lateral ---------- */
+.side{width:196px}
+
+.side .box{
+  border:1px solid var(--edge);
+  background:var(--panel);
+  padding:13px 14px;
+  margin-bottom:12px;
+}
+.side .box h2{
+  font-family:var(--pixel);
+  font-size:9px;
+  color:var(--volt);
+  margin-bottom:9px;
+  letter-spacing:.5px;
+}
+.side .box .val{
+  font-family:var(--pixel);
+  font-size:15px;
+  color:var(--amber);
+}
+.side .keys{font-size:12px;color:var(--dim);line-height:1.9}
+.side .keys b{color:var(--ink);font-weight:600}
+
+.back{
+  display:inline-block;
+  margin-top:4px;
+  font-family:var(--pixel);
+  font-size:8px;
+  color:var(--void);
+  background:var(--volt);
+  padding:9px 11px;
+  text-decoration:none;
+}
+.back:hover{background:var(--neon);color:#12000a}
+
+/* ---------- paneles y botones del juego ---------- */
+.panel{
+  background:var(--panel) !important;
+  border:1px solid var(--edge) !important;
+  border-radius:0 !important;
+  backdrop-filter:none !important;
+}
+
+.logo, .panel h2, .over-title{
+  font-family:var(--pixel) !important;
+  letter-spacing:.5px;
+}
+.logo{font-size:17px !important; line-height:1.8}
+.logo span{color:var(--volt) !important}
+.panel h2, .over-title{font-size:15px !important}
+
+.btn-main, .btn-second, .btn-ghost, .tab{
+  border-radius:0 !important;
+  font-family:var(--pixel) !important;
+  font-size:10px !important;
+  letter-spacing:.5px;
+}
+.btn-main{
+  background:var(--volt) !important;
+  color:var(--void) !important;
+  border:0 !important;
+  box-shadow:none !important;
+}
+.btn-main:hover{background:var(--neon) !important;color:#12000a !important}
+.btn-second{
+  background:transparent !important;
+  color:var(--ink) !important;
+  border:1px solid var(--edge) !important;
+}
+.btn-second:hover{border-color:var(--volt) !important;color:var(--volt) !important}
+.btn-ghost{color:var(--dim) !important}
+.btn-ghost:hover{color:var(--ink) !important}
+
+kbd{
+  border-radius:0 !important;
+  background:var(--panel2) !important;
+  border:1px solid var(--edge) !important;
+  color:var(--ink) !important;
+  font-family:var(--pixel) !important;
+  font-size:9px !important;
+}
+
+.icon-btn{
+  border-radius:0 !important;
+  background:var(--panel) !important;
+  border:1px solid var(--edge) !important;
+  color:var(--ink) !important;
+}
+
+.record{
+  font-family:var(--pixel) !important;
+  font-size:10px !important;
+  color:var(--amber) !important;
+}
+
+.mult{font-family:var(--pixel) !important}
+
+@media(max-width:1000px){
+  #app{width:100%;height:62vh;min-height:380px}
+  .side{width:100%;max-width:420px}
+}

@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fusión 2048</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🔢</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#07060d; --panel:#12101f; --panel2:#1b1830; --edge:#2e2a4a;
+  --ink:#e9e5ff; --dim:#8b83b4; --neon:#ff2e88; --volt:#35f0d0; --amber:#ffb020;
+  --pixel:'Press Start 2P', monospace;
+  --body:'Chakra Petch', 'Trebuchet MS', sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--void);color:var(--ink);font-family:var(--body);min-height:100vh;
+     display:flex;align-items:center;justify-content:center;padding:20px;gap:26px;flex-wrap:wrap}
+body::before{content:'';position:fixed;inset:0;z-index:99;pointer-events:none;
+  background:repeating-linear-gradient(to bottom, rgba(0,0,0,.22) 0 1px, transparent 1px 3px)}
+h1{font-family:var(--pixel);font-size:13px;margin-bottom:18px;text-shadow:2px 2px 0 var(--volt)}
+.stage{position:relative;border:1px solid var(--edge);background:#05040c;padding:14px;
+       box-shadow:0 0 0 6px var(--panel), 0 20px 60px rgba(0,0,0,.7)}
+#rejilla{display:grid;grid-template-columns:repeat(4,104px);grid-template-rows:repeat(4,104px);gap:12px;touch-action:none;cursor:grab}
+#rejilla.arrastrando{cursor:grabbing}
+.f{
+  display:flex;align-items:center;justify-content:center;
+  background:#0d0b18;border:1px solid var(--edge);
+  font-family:var(--pixel);font-size:19px;color:var(--void);
+  transition:transform .09s;
+}
+.f.n{animation:pop .16s ease-out}
+@keyframes pop{from{transform:scale(.72)}to{transform:scale(1)}}
+.f[data-v="2"]{background:#2b2748;color:#e9e5ff;font-size:17px}
+.f[data-v="4"]{background:#3a3466;color:#e9e5ff;font-size:17px}
+.f[data-v="8"]{background:#5b8cff;font-size:17px}
+.f[data-v="16"]{background:#35f0d0;font-size:16px}
+.f[data-v="32"]{background:#7ce85c;font-size:16px}
+.f[data-v="64"]{background:#ffe066;font-size:16px}
+.f[data-v="128"]{background:#ffb020;font-size:13px}
+.f[data-v="256"]{background:#ff8a3d;font-size:13px}
+.f[data-v="512"]{background:#ff5a5a;font-size:13px}
+.f[data-v="1024"]{background:#ff2e88;font-size:10px;color:#12000a}
+.f[data-v="2048"]{background:#e9e5ff;font-size:10px;box-shadow:0 0 24px rgba(233,229,255,.7)}
+.f[data-v="4096"]{background:#fff;font-size:10px}
+.side{width:196px}
+.box{border:1px solid var(--edge);background:var(--panel);padding:13px 14px;margin-bottom:12px}
+.box h2{font-family:var(--pixel);font-size:9px;color:var(--volt);margin-bottom:9px}
+.box .val{font-family:var(--pixel);font-size:15px;color:var(--amber)}
+.keys{font-size:12px;color:var(--dim);line-height:1.9}
+.keys b{color:var(--ink);font-weight:600}
+.back{display:inline-block;margin-top:4px;font-family:var(--pixel);font-size:8px;
+      color:var(--void);background:var(--volt);padding:9px 11px;text-decoration:none}
+.back:hover{background:var(--neon);color:#12000a}
+.overlay{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;
+  justify-content:center;gap:16px;background:rgba(5,4,12,.9);text-align:center;padding:20px}
+.overlay.show{display:flex}
+.overlay p{font-family:var(--pixel);font-size:14px;line-height:1.9}
+.overlay small{color:var(--dim);font-size:13px;display:block;margin-top:6px}
+.overlay button{font-family:var(--pixel);font-size:10px;border:0;cursor:pointer;
+  background:var(--neon);color:#12000a;padding:13px 18px}
+.overlay button:hover{background:var(--volt);color:var(--void)}
+</style>
+</head>
+<body>
+
+<div>
+  <h1>FUSIÓN 2048</h1>
+  <div class="stage">
+    <div id="rejilla"></div>
+    <div class="overlay" id="over">
+      <p id="overTitle">SIN MOVIMIENTOS</p>
+      <small id="overText"></small>
+      <button id="overBtn">OTRA PARTIDA</button>
+    </div>
+  </div>
+</div>
+
+<div class="side">
+  <div class="box"><h2>PUNTOS</h2><div class="val" id="score">0</div></div>
+  <div class="box"><h2>RÉCORD</h2><div class="val" id="best">0</div></div>
+  <div class="box"><h2>MAYOR FICHA</h2><div class="val" id="max">2</div></div>
+  <div class="box">
+    <h2>CONTROLES</h2>
+    <div class="keys">
+      <b>Arrastra</b> con el ratón<br>
+      <b>← ↑ → ↓</b> mover<br>
+      <b>W A S D</b> también<br>
+      <b>R</b> nueva partida
+    </div>
+  </div>
+  <div class="box">
+    <h2>REGLAS</h2>
+    <div class="keys">Dos fichas iguales se funden en una del doble. Llega a 2048 y puedes seguir jugando.</div>
+  </div>
+  <a class="back" href="../04-arcade-vault/index.html">&lt; VOLVER AL SALÓN</a>
+</div>
+
+<script src="../04-arcade-vault/salon.js"></script>
+<script>
+const N = 4;
+const rejillaEl = document.getElementById('rejilla');
+let t, score = 0, best = 0, estado = 'jugando', avisado2048 = false;
+
+const el = {
+  score: document.getElementById('score'),
+  best: document.getElementById('best'),
+  max: document.getElementById('max'),
+  over: document.getElementById('over'),
+  overTitle: document.getElementById('overTitle'),
+  overText: document.getElementById('overText'),
+  overBtn: document.getElementById('overBtn'),
+};
+
+const celdas = [];
+for(let i = 0; i < N * N; i++){
+  const d = document.createElement('div');
+  d.className = 'f';
+  rejillaEl.appendChild(d);
+  celdas.push(d);
+}
+
+function vacias(){
+  const v = [];
+  for(let y = 0; y < N; y++) for(let x = 0; x < N; x++) if(!t[y][x]) v.push([x, y]);
+  return v;
+}
+
+function meterFicha(){
+  const v = vacias();
+  if(!v.length) return null;
+  const [x, y] = v[Math.floor(Math.random() * v.length)];
+  t[y][x] = Math.random() < 0.9 ? 2 : 4;
+  return [x, y];
+}
+
+function pintar(nueva){
+  let mayor = 0;
+  for(let y = 0; y < N; y++){
+    for(let x = 0; x < N; x++){
+      const d = celdas[y * N + x];
+      const v = t[y][x];
+      d.textContent = v || '';
+      if(v) d.dataset.v = v; else delete d.dataset.v;
+      d.classList.remove('n');
+      if(nueva && nueva[0] === x && nueva[1] === y) d.classList.add('n');
+      mayor = Math.max(mayor, v || 0);
+    }
+  }
+  el.score.textContent = score;
+  el.best.textContent = best;
+  el.max.textContent = mayor || 2;
+
+  if(mayor >= 2048 && !avisado2048){
+    avisado2048 = true;
+    el.overTitle.textContent = '¡2048!';
+    el.overText.textContent = 'Puedes seguir jugando para subir más';
+    el.overBtn.textContent = 'SEGUIR';
+    el.over.classList.add('show');
+    estado = 'aviso';
+  }
+}
+
+// Comprime y funde una fila hacia la izquierda. Devuelve la fila nueva.
+function fundirFila(fila){
+  const vals = fila.filter(v => v);
+  const salida = [];
+  for(let i = 0; i < vals.length; i++){
+    if(vals[i] === vals[i + 1]){
+      const suma = vals[i] * 2;
+      salida.push(suma);
+      score += suma;
+      i++;
+    } else {
+      salida.push(vals[i]);
+    }
+  }
+  while(salida.length < N) salida.push(0);
+  return salida;
+}
+
+const filas    = m => m.map(f => [...f]);
+const alReves  = m => m.map(f => [...f].reverse());
+const transpon = m => m[0].map((_, x) => m.map(f => f[x]));
+
+function mover(dir){
+  if(estado !== 'jugando') return;
+  const antes = JSON.stringify(t);
+
+  let m = filas(t);
+  if(dir === 'arriba')   m = transpon(m);
+  if(dir === 'abajo')    m = alReves(transpon(m));
+  if(dir === 'derecha')  m = alReves(m);
+
+  m = m.map(fundirFila);
+
+  if(dir === 'arriba')   m = transpon(m);
+  if(dir === 'abajo')    m = transpon(alReves(m));
+  if(dir === 'derecha')  m = alReves(m);
+
+  t = m;
+
+  if(JSON.stringify(t) === antes){ pintar(); return; }
+
+  best = Math.max(best, score);
+  const nueva = meterFicha();
+  pintar(nueva);
+  if(!hayMovimientos()) terminar();
+}
+
+function hayMovimientos(){
+  if(vacias().length) return true;
+  for(let y = 0; y < N; y++)
+    for(let x = 0; x < N; x++){
+      if(x < N - 1 && t[y][x] === t[y][x + 1]) return true;
+      if(y < N - 1 && t[y][x] === t[y + 1][x]) return true;
+    }
+  return false;
+}
+
+function terminar(){
+  estado = 'fin';
+  window.Hall && Hall.registrar('12-fusion', score, { unidad: 'pts', etiqueta: 'ficha ' + el.max.textContent });
+  el.overTitle.textContent = 'SIN MOVIMIENTOS';
+  el.overText.textContent = score + ' puntos · mayor ficha ' + el.max.textContent;
+  el.overBtn.textContent = 'OTRA PARTIDA';
+  el.over.classList.add('show');
+}
+
+function nueva(){
+  t = Array.from({length:N}, () => Array(N).fill(0));
+  score = 0;
+  estado = 'jugando';
+  avisado2048 = false;
+  el.over.classList.remove('show');
+  meterFicha();
+  pintar(meterFicha());
+}
+
+const MAPA = {
+  arrowleft:'izquierda', a:'izquierda',
+  arrowright:'derecha',  d:'derecha',
+  arrowup:'arriba',      w:'arriba',
+  arrowdown:'abajo',     s:'abajo',
+};
+
+document.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if(k === 'r'){ nueva(); return; }
+  const dir = MAPA[k];
+  if(!dir) return;
+  e.preventDefault();
+  mover(dir);
+});
+
+/* ---------- arrastre con el ratón (y con el dedo) ----------
+   Se toma la dirección del eje que más se ha movido, con un mínimo
+   de UMBRAL píxeles para no disparar el movimiento con un clic seco. */
+const UMBRAL = 24;
+let inicio = null;
+
+function direccionDelGesto(dx, dy){
+  if(Math.max(Math.abs(dx), Math.abs(dy)) < UMBRAL) return null;
+  if(Math.abs(dx) > Math.abs(dy)) return dx > 0 ? 'derecha' : 'izquierda';
+  return dy > 0 ? 'abajo' : 'arriba';
+}
+
+rejillaEl.addEventListener('pointerdown', e => {
+  if(estado !== 'jugando') return;
+  inicio = { x: e.clientX, y: e.clientY };
+  rejillaEl.classList.add('arrastrando');
+  rejillaEl.setPointerCapture(e.pointerId);
+});
+
+rejillaEl.addEventListener('pointermove', e => {
+  if(!inicio) return;
+  // en cuanto se supera el umbral se mueve y se cierra el gesto,
+  // así un arrastre largo no encadena movimientos sin querer
+  const dir = direccionDelGesto(e.clientX - inicio.x, e.clientY - inicio.y);
+  if(!dir) return;
+  inicio = null;
+  rejillaEl.classList.remove('arrastrando');
+  mover(dir);
+});
+
+function soltarGesto(){
+  inicio = null;
+  rejillaEl.classList.remove('arrastrando');
+}
+rejillaEl.addEventListener('pointerup', soltarGesto);
+rejillaEl.addEventListener('pointercancel', soltarGesto);
+rejillaEl.addEventListener('pointerleave', soltarGesto);
+
+el.overBtn.addEventListener('click', () => {
+  if(estado === 'aviso'){
+    estado = 'jugando';
+    el.over.classList.remove('show');
+  } else {
+    nueva();
+  }
+});
+
+nueva();
+</script>
+
+</body>
+</html>

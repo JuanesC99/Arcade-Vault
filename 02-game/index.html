@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0d1220">
+<meta name="description" content="Metro Rush — endless runner 3D estilo Subway Surfers hecho con HTML, CSS y JavaScript puro.">
+<title>Metro Rush</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🚇</text></svg>">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/arcade.css">
+</head>
+<body>
+
+<div>
+  <h1 class="cabina-titulo">METRO RUSH</h1>
+<div id="app">
+  <canvas id="game"></canvas>
+
+  <!-- ---------------- HUD ---------------- -->
+  <div id="hud" class="hidden">
+    <div id="hud-mult" class="mult hidden">x2</div>
+    <div id="hud-powers" class="powers"></div>
+
+    <button id="btn-pause" class="icon-btn" aria-label="Pausa" title="Pausa (P)">II</button>
+    <button id="btn-sound" class="icon-btn sound" aria-label="Sonido" title="Sonido (M)">♪</button>
+  </div>
+
+  <!-- ---------------- MENÚ ---------------- -->
+  <div id="screen-start" class="overlay">
+    <div class="panel">
+      <h1 class="logo"><span>METRO</span> RUSH</h1>
+      <p class="tagline">Corre por las vías. No mires atrás.</p>
+
+      <button id="btn-play" class="btn-main">JUGAR</button>
+      <button id="btn-shop" class="btn-second">TIENDA</button>
+
+      <div class="controls">
+        <div class="ctrl"><kbd>←</kbd><kbd>→</kbd><span>Cambiar de carril</span></div>
+        <div class="ctrl"><kbd>↑</kbd><kbd>Espacio</kbd><span>Saltar</span></div>
+        <div class="ctrl"><kbd>↓</kbd><span>Deslizarse</span></div>
+        <div class="ctrl touch-only"><span class="swipe">👆</span><span>Desliza en cualquier dirección</span></div>
+      </div>
+
+      <div class="legend">
+        <div><i class="chip chip-coin"></i> Moneda</div>
+        <div><i class="chip chip-magnet"></i> Imán</div>
+        <div><i class="chip chip-shield"></i> Escudo</div>
+        <div><i class="chip chip-boost"></i> Doble puntos</div>
+        <div><i class="chip chip-jet"></i> Jetpack</div>
+        <div><i class="chip chip-boots"></i> Súper zapatillas</div>
+      </div>
+
+      <p class="best">Récord: <b id="start-best">0</b> &nbsp;·&nbsp; Banco: <b id="start-bank">0</b> 🪙</p>
+    </div>
+  </div>
+
+  <!-- ---------------- TIENDA ---------------- -->
+  <div id="screen-shop" class="overlay hidden">
+    <div class="panel wide">
+      <div class="shop-head">
+        <h2>TIENDA</h2>
+        <div class="bank"><b id="shop-bank">0</b> 🪙</div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="chars">Personajes</button>
+        <button class="tab" data-tab="ups">Mejoras</button>
+      </div>
+
+      <div id="tab-chars" class="tab-body"></div>
+      <div id="tab-ups" class="tab-body hidden"></div>
+
+      <button id="btn-shop-back" class="btn-ghost">VOLVER</button>
+    </div>
+  </div>
+
+  <!-- ---------------- PAUSA ---------------- -->
+  <div id="screen-pause" class="overlay hidden">
+    <div class="panel small">
+      <h2>PAUSA</h2>
+      <button id="btn-resume" class="btn-main">CONTINUAR</button>
+      <button id="btn-quit" class="btn-ghost">SALIR AL MENÚ</button>
+    </div>
+  </div>
+
+  <!-- ---------------- GAME OVER ---------------- -->
+  <div id="screen-over" class="overlay hidden">
+    <div class="panel">
+      <h2 class="over-title">ATROPELLADO</h2>
+      <div id="new-record" class="record hidden">¡NUEVO RÉCORD!</div>
+
+      <div class="stats">
+        <div class="stat"><span>Puntos</span><b id="over-score">0</b></div>
+        <div class="stat"><span>Distancia</span><b id="over-dist">0 m</b></div>
+        <div class="stat"><span>Monedas</span><b id="over-coins">0</b></div>
+        <div class="stat"><span>Récord</span><b id="over-best">0</b></div>
+      </div>
+
+      <p class="earned">+<b id="over-earned">0</b> 🪙 al banco · total <b id="over-bank">0</b></p>
+
+      <button id="btn-retry" class="btn-main">REINTENTAR</button>
+      <button id="btn-shop2" class="btn-second">TIENDA</button>
+      <button id="btn-menu" class="btn-ghost">MENÚ</button>
+    </div>
+  </div>
+
+  <div id="flash"></div>
+</div>
+</div>
+
+<div class="side">
+  <div class="box"><h2>PUNTOS</h2><div class="val" id="hud-score">0</div></div>
+  <div class="box"><h2>DISTANCIA</h2><div class="val" id="hud-dist">0 m</div></div>
+  <div class="box"><h2>MONEDAS</h2><div class="val" id="hud-coins">0</div></div>
+  <div class="box">
+    <h2>CONTROLES</h2>
+    <div class="keys">
+      <b>&larr; &rarr;</b> cambiar de carril<br>
+      <b>&uarr;</b> o <b>Espacio</b> saltar<br>
+      <b>&darr;</b> deslizarse<br>
+      <b>P</b> pausa · <b>M</b> sonido
+    </div>
+  </div>
+  <div class="box">
+    <h2>REGLAS</h2>
+    <div class="keys">Los trenes se pueden usar de plataforma. Las monedas se gastan en la tienda del menú.</div>
+  </div>
+  <a class="back" href="../04-arcade-vault/index.html">&lt; VOLVER AL SALÓN</a>
+</div>
+
+<script src="../04-arcade-vault/salon.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/store.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/render.js"></script>
+<script src="js/world.js"></script>
+<script src="js/shop.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>

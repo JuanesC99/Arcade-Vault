@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vuelo Rasante</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🚀</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#07060d; --panel:#12101f; --edge:#2e2a4a;
+  --ink:#e9e5ff; --dim:#8b83b4; --neon:#ff2e88; --volt:#35f0d0; --amber:#ffb020;
+  --pixel:'Press Start 2P', monospace;
+  --body:'Chakra Petch', 'Trebuchet MS', sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--void);color:var(--ink);font-family:var(--body);min-height:100vh;
+     display:flex;align-items:center;justify-content:center;padding:20px;gap:26px;flex-wrap:wrap}
+body::before{content:'';position:fixed;inset:0;z-index:99;pointer-events:none;
+  background:repeating-linear-gradient(to bottom, rgba(0,0,0,.22) 0 1px, transparent 1px 3px)}
+h1{font-family:var(--pixel);font-size:13px;margin-bottom:18px;text-shadow:2px 2px 0 var(--amber)}
+.stage{position:relative;border:1px solid var(--edge);background:#05040c;
+       box-shadow:0 0 0 6px var(--panel), 0 20px 60px rgba(0,0,0,.7)}
+canvas{display:block;cursor:pointer}
+.side{width:196px}
+.box{border:1px solid var(--edge);background:var(--panel);padding:13px 14px;margin-bottom:12px}
+.box h2{font-family:var(--pixel);font-size:9px;color:var(--volt);margin-bottom:9px}
+.box .val{font-family:var(--pixel);font-size:15px;color:var(--amber)}
+.keys{font-size:12px;color:var(--dim);line-height:1.9}
+.keys b{color:var(--ink);font-weight:600}
+.back{display:inline-block;margin-top:4px;font-family:var(--pixel);font-size:8px;
+      color:var(--void);background:var(--volt);padding:9px 11px;text-decoration:none}
+.back:hover{background:var(--neon);color:#12000a}
+.overlay{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;
+  justify-content:center;gap:16px;background:rgba(5,4,12,.88);text-align:center;padding:20px}
+.overlay.show{display:flex}
+.overlay p{font-family:var(--pixel);font-size:15px;line-height:1.9}
+.overlay small{color:var(--dim);font-size:13px;display:block;margin-top:6px}
+.overlay button{font-family:var(--pixel);font-size:10px;border:0;cursor:pointer;
+  background:var(--neon);color:#12000a;padding:13px 18px}
+.overlay button:hover{background:var(--volt);color:var(--void)}
+</style>
+</head>
+<body>
+
+<div>
+  <h1>VUELO RASANTE</h1>
+  <div class="stage">
+    <canvas id="cv" width="480" height="620"></canvas>
+    <div class="overlay show" id="over">
+      <p id="overTitle">VUELO RASANTE</p>
+      <small id="overText">Un toque sube, la gravedad hace el resto</small>
+      <button id="overBtn">DESPEGAR</button>
+    </div>
+  </div>
+</div>
+
+<div class="side">
+  <div class="box"><h2>PUERTAS</h2><div class="val" id="score">0</div></div>
+  <div class="box"><h2>RÉCORD</h2><div class="val" id="best">0</div></div>
+  <div class="box">
+    <h2>CONTROLES</h2>
+    <div class="keys">
+      <b>Espacio</b> o <b>clic</b> impulso<br>
+      <b>↑</b> también<br>
+      <b>P</b> pausa
+    </div>
+  </div>
+  <div class="box">
+    <h2>REGLAS</h2>
+    <div class="keys">Pasa entre las torres. El hueco se estrecha cada cinco puertas y la nave acelera.</div>
+  </div>
+  <a class="back" href="../04-arcade-vault/index.html">&lt; VOLVER AL SALÓN</a>
+</div>
+
+<script src="../04-arcade-vault/salon.js"></script>
+<script>
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const W = cv.width, H = cv.height;
+
+const GRAVEDAD = 1500, IMPULSO = -430, SUELO = H - 40;
+const NAVE_R = 13;
+
+let nave, torres, score, best = 0, estado, velBase, hueco, desdeUltima, fondo = 0;
+
+const el = {
+  score: document.getElementById('score'),
+  best: document.getElementById('best'),
+  over: document.getElementById('over'),
+  overTitle: document.getElementById('overTitle'),
+  overText: document.getElementById('overText'),
+  overBtn: document.getElementById('overBtn'),
+};
+
+function arrancar(){
+  nave = { x: 128, y: H/2, vy: 0 };
+  torres = [];
+  score = 0;
+  velBase = 190;
+  hueco = 168;
+  desdeUltima = 260;
+  estado = 'jugando';
+  el.over.classList.remove('show');
+  pintarHud();
+}
+
+function pintarHud(){
+  el.score.textContent = score;
+  el.best.textContent = best;
+}
+
+function impulso(){
+  if(estado === 'jugando') nave.vy = IMPULSO;
+}
+
+function morir(){
+  estado = 'fin';
+  best = Math.max(best, score);
+  window.Hall && Hall.registrar('09-vuelo-rasante', score, { unidad: 'puertas' });
+  el.overTitle.textContent = 'CHATARRA';
+  el.overText.textContent = 'Pasaste ' + score + (score === 1 ? ' puerta' : ' puertas');
+  el.overBtn.textContent = 'OTRO VUELO';
+  el.over.classList.add('show');
+  pintarHud();
+}
+
+function nuevaTorre(){
+  const margen = 70;
+  const centro = margen + hueco/2 + Math.random() * (SUELO - hueco - margen * 2);
+  torres.push({ x: W + 30, w: 62, centro, pasada: false });
+}
+
+function actualizar(dt){
+  fondo += velBase * dt * 0.35;
+
+  nave.vy += GRAVEDAD * dt;
+  nave.y += nave.vy * dt;
+
+  if(nave.y - NAVE_R < 0){ nave.y = NAVE_R; nave.vy = 0; }
+  if(nave.y + NAVE_R > SUELO) return morir();
+
+  desdeUltima += velBase * dt;
+  if(desdeUltima >= 250){ desdeUltima = 0; nuevaTorre(); }
+
+  for(const t of torres) t.x -= velBase * dt;
+  torres = torres.filter(t => t.x + t.w > -10);
+
+  for(const t of torres){
+    const dentroX = nave.x + NAVE_R > t.x && nave.x - NAVE_R < t.x + t.w;
+    if(dentroX){
+      const arriba = t.centro - hueco/2, abajo = t.centro + hueco/2;
+      if(nave.y - NAVE_R < arriba || nave.y + NAVE_R > abajo) return morir();
+    }
+    if(!t.pasada && t.x + t.w < nave.x - NAVE_R){
+      t.pasada = true;
+      score++;
+      if(score % 5 === 0){
+        hueco = Math.max(112, hueco - 8);
+        velBase += 14;
+      }
+      pintarHud();
+    }
+  }
+}
+
+function dibujar(){
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#0b0620');
+  g.addColorStop(1, '#1b0a2a');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  // ciudad de fondo en parallax
+  ctx.fillStyle = 'rgba(53,240,208,.10)';
+  for(let i = 0; i < 14; i++){
+    const bx = ((i * 91) - (fondo * 0.35) % (W + 120) + W + 120) % (W + 120) - 60;
+    const bh = 60 + ((i * 53) % 130);
+    ctx.fillRect(bx, SUELO - bh, 46, bh);
+  }
+
+  for(const t of torres){
+    const arriba = t.centro - hueco/2, abajo = t.centro + hueco/2;
+    ctx.fillStyle = '#ff2e88';
+    ctx.fillRect(t.x, 0, t.w, arriba);
+    ctx.fillRect(t.x, abajo, t.w, SUELO - abajo);
+    ctx.fillStyle = 'rgba(255,255,255,.25)';
+    ctx.fillRect(t.x, arriba - 12, t.w, 12);
+    ctx.fillRect(t.x, abajo, t.w, 12);
+  }
+
+  // suelo
+  ctx.fillStyle = '#1b1830';
+  ctx.fillRect(0, SUELO, W, H - SUELO);
+  ctx.fillStyle = 'var(--volt)';
+  ctx.fillStyle = '#35f0d0';
+  ctx.fillRect(0, SUELO, W, 2);
+
+  // nave
+  const inclina = Math.max(-0.5, Math.min(0.9, nave.vy / 620));
+  ctx.save();
+  ctx.translate(nave.x, nave.y);
+  ctx.rotate(inclina);
+  ctx.fillStyle = '#ffb020';
+  ctx.shadowColor = '#ffb020'; ctx.shadowBlur = 14;
+  ctx.beginPath();
+  ctx.moveTo(NAVE_R + 6, 0);
+  ctx.lineTo(-NAVE_R, -NAVE_R + 2);
+  ctx.lineTo(-NAVE_R + 5, 0);
+  ctx.lineTo(-NAVE_R, NAVE_R - 2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  if(nave.vy < 0){
+    ctx.fillStyle = '#ff2e88';
+    ctx.fillRect(-NAVE_R - 8, -3, 8, 6);
+  }
+  ctx.restore();
+}
+
+function pausar(){
+  if(estado === 'jugando'){
+    estado = 'pausa';
+    el.overTitle.textContent = 'PAUSA';
+    el.overText.textContent = 'Pulsa P para seguir';
+    el.overBtn.textContent = 'REINICIAR';
+    el.over.classList.add('show');
+  } else if(estado === 'pausa'){
+    estado = 'jugando';
+    el.over.classList.remove('show');
+  }
+}
+
+document.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if(k === 'p'){ pausar(); return; }
+  if(k === ' ' || k === 'arrowup'){ e.preventDefault(); impulso(); }
+});
+cv.addEventListener('mousedown', impulso);
+
+el.overBtn.addEventListener('click', arrancar);
+
+nave = { x: 128, y: H/2, vy: 0 };
+torres = []; score = 0; velBase = 190; hueco = 168; desdeUltima = 260;
+estado = 'menu';
+pintarHud();
+
+let ultimo = performance.now();
+function bucle(t){
+  const dt = Math.min(0.05, (t - ultimo) / 1000);
+  ultimo = t;
+  if(estado === 'jugando') actualizar(dt);
+  dibujar();
+  requestAnimationFrame(bucle);
+}
+requestAnimationFrame(bucle);
+</script>
+
+</body>
+</html>
