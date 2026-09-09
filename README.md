@@ -27,7 +27,13 @@ Cada juego también funciona por su cuenta: abre el `index.html` de su carpeta.
 | `15-cruce` | Cruce Peligroso | Travesía | Flechas o WASD |
 | `16-cuatro-en-linea` | Cuatro en Línea | Mesa, contra la máquina | Clic o teclas 1 a 7 |
 
-En casi todas, `P` pausa la partida.
+En casi todas, `P` pausa la partida. En todas, `F` o el botón del panel lateral ponen el juego a pantalla completa.
+
+## Pantalla completa
+
+`04-arcade-vault/pantalla.js` es el otro archivo común. Añade el botón y la tecla, esconde el panel y agranda el marco del juego con `transform: scale` hasta llenar la pantalla, respetando su proporción.
+
+Se agranda el marco, no el lienzo. Cada cabina sigue trabajando en sus coordenadas de siempre, porque `getBoundingClientRect` ya devuelve el tamaño escalado y es justo lo que usan para traducir la posición del ratón. Verificado en Arkanoid, en el cuatro en línea y en el rompecabezas, que son los tres casos donde más se notaría un desajuste.
 
 ## La tienda
 
