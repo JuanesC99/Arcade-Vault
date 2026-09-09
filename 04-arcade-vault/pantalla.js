@@ -1,37 +1,55 @@
 /* ============================================================
-   pantalla.js — pantalla completa para las cabinas del salón.
+   pantalla.js — ajuste del tamaño de las cabinas.
 
-   Añade un botón al panel lateral y la tecla F. Al entrar,
-   esconde el panel y el título y agranda el marco del juego
-   hasta llenar la pantalla, manteniendo su proporción.
+   Hace dos cosas con el mismo mecanismo:
 
-   El marco se agranda con `transform: scale`, no cambiando el
-   tamaño del lienzo. Así la lógica de cada juego sigue trabajando
-   en sus coordenadas de siempre: getBoundingClientRect ya devuelve
-   el tamaño escalado, que es justo lo que usan las cabinas para
-   traducir la posición del ratón.
+   1. Pantalla completa, con el botón del panel o la tecla F.
+   2. Encaje automático en pantallas pequeñas, para que la cabina
+      quepa de ancho en un móvil sin desbordar.
+
+   En los dos casos se agranda o encoge el marco con
+   `transform: scale`, nunca el lienzo. Así la lógica de cada juego
+   sigue trabajando en sus coordenadas de siempre: getBoundingClientRect
+   ya devuelve el tamaño escalado, que es justo lo que usan las cabinas
+   para traducir la posición del ratón o del dedo.
+
+   El marco va envuelto en una caja del tamaño ya escalado, porque
+   `transform` no cambia el hueco que ocupa un elemento y sin eso la
+   página desbordaría a lo ancho.
 
    Se carga con guarda, igual que salon.js: si faltara, los juegos
-   seguirían funcionando sin pantalla completa.
+   seguirían funcionando sin ajuste ni pantalla completa.
    ============================================================ */
 (function () {
   'use strict';
 
-  // El marco es la caja que se agranda. Cada cabina tiene la suya:
+  // El marco es la caja que se escala. Cada cabina tiene la suya:
   // .stage en la mayoría, #app en Metro Rush, y el propio lienzo en
   // Arkanoid, que no lleva ni marco ni panel.
   var marco = document.querySelector('.stage') ||
               document.getElementById('app') ||
               document.querySelector('canvas');
-  if (!marco || !document.documentElement.requestFullscreen) return;
+  if (!marco) return;
   marco.classList.add('pantalla-marco');
+
+  var hayPantallaCompleta = !!document.documentElement.requestFullscreen;
 
   var MARGEN_ANCHO = 0.98;
   var MARGEN_ALTO = 0.94;
+  var ANCHO_MOVIL = 900;      // a partir de aquí se considera pantalla pequeña
+  var MARGEN_LATERAL = 14;
+
+  /* ---------------- caja que reserva el hueco ---------------- */
+  var caja = document.createElement('div');
+  caja.className = 'pantalla-caja';
+  marco.parentNode.insertBefore(caja, marco);
+  caja.appendChild(marco);
 
   /* ---------------- estilos ---------------- */
   var css = document.createElement('style');
   css.textContent = [
+    '.pantalla-caja{position:relative}',
+
     '.pantalla-btn{',
     '  display:block;width:100%;margin-top:10px;',
     "  font-family:'Press Start 2P',monospace;font-size:8px;line-height:1.6;",
@@ -47,6 +65,7 @@
     'body.en-pantalla .side,',
     'body.en-pantalla h1,',
     'body.en-pantalla .cabina-titulo{display:none}',
+    'body.en-pantalla .pantalla-caja{width:auto !important;height:auto !important}',
     'body.en-pantalla .pantalla-marco{',
     '  transform-origin:center center;',
     '  box-shadow:0 0 0 6px #12101f;',
@@ -69,7 +88,10 @@
     '  border:1px solid #2e2a4a;padding:10px 14px;',
     '  opacity:0;transition:opacity .3s;',
     '}',
-    '#pantalla-aviso.ver{opacity:1}'
+    '#pantalla-aviso.ver{opacity:1}',
+
+    /* en pantallas pequeñas el botón de pantalla completa estorba */
+    '@media (max-width: 900px){ .pantalla-btn, .caja-pantalla{display:none !important} }'
   ].join('\n');
   document.head.appendChild(css);
 
@@ -78,18 +100,19 @@
   boton.className = 'pantalla-btn';
   boton.textContent = 'PANTALLA COMPLETA (F)';
 
-  var panel = document.querySelector('.side');
-  if (panel) {
-    var caja = document.createElement('div');
-    caja.className = 'box';
-    caja.appendChild(boton);
-    // justo antes del enlace de volver al salón, si existe
-    var volver = panel.querySelector('.back');
-    if (volver) panel.insertBefore(caja, volver);
-    else panel.appendChild(caja);
-  } else {
-    boton.classList.add('suelto');
-    document.body.appendChild(boton);
+  if (hayPantallaCompleta) {
+    var panel = document.querySelector('.side');
+    if (panel) {
+      var cajaBoton = document.createElement('div');
+      cajaBoton.className = 'box caja-pantalla';
+      cajaBoton.appendChild(boton);
+      var volver = panel.querySelector('.back');
+      if (volver) panel.insertBefore(cajaBoton, volver);
+      else panel.appendChild(cajaBoton);
+    } else {
+      boton.classList.add('suelto');
+      document.body.appendChild(boton);
+    }
   }
 
   /* ---------------- aviso ---------------- */
@@ -105,35 +128,67 @@
     temporizador = setTimeout(function () { aviso.classList.remove('ver'); }, 2600);
   }
 
-  /* ---------------- ajuste del tamaño ---------------- */
-  function ajustar() {
-    if (!document.fullscreenElement) {
-      document.body.classList.remove('en-pantalla');
-      marco.style.transform = '';
-      document.documentElement.style.setProperty('--escala', 1);
-      boton.textContent = 'PANTALLA COMPLETA (F)';
-      return;
+  /* ---------------- cálculo del factor ---------------- */
+  function factor(w, h) {
+    if (document.fullscreenElement) {
+      return Math.max(1, Math.min(
+        window.innerWidth * MARGEN_ANCHO / w,
+        window.innerHeight * MARGEN_ALTO / h
+      ));
     }
 
-    document.body.classList.add('en-pantalla');
-    boton.textContent = 'SALIR (F)';
+    if (window.innerWidth > ANCHO_MOVIL) return 1;
 
-    // offsetWidth no cuenta el transform, así que siempre mide el marco real
+    // hueco que hay que dejar libre abajo para el mando táctil
+    var mando = document.querySelector('.mando');
+    var reserva = mando ? mando.offsetHeight + 30 : 30;
+
+    return Math.min(
+      1,
+      (window.innerWidth - MARGEN_LATERAL) / w,
+      (window.innerHeight - reserva) / h
+    );
+  }
+
+  function ajustar() {
+    var enPantalla = !!document.fullscreenElement;
+    document.body.classList.toggle('en-pantalla', enPantalla);
+    boton.textContent = enPantalla ? 'SALIR (F)' : 'PANTALLA COMPLETA (F)';
+
+    // Se mide sin ninguna restricción puesta por una pasada anterior.
+    // Si no, la caja ya encogida haría que el marco midiera menos de lo
+    // que mide en realidad y el ajuste se deshría a sí mismo.
+    marco.style.transform = '';
+    marco.style.minWidth = '';
+    caja.style.width = '';
+    caja.style.height = '';
+
     var w = marco.offsetWidth, h = marco.offsetHeight;
     if (!w || !h) return;
 
-    var k = Math.min(
-      window.innerWidth * MARGEN_ANCHO / w,
-      window.innerHeight * MARGEN_ALTO / h
-    );
-    k = Math.max(1, k);
+    var k = factor(w, h);
 
+    if (k === 1 && !enPantalla) {
+      document.documentElement.style.setProperty('--escala', 1);
+      return;
+    }
+
+    marco.style.transformOrigin = enPantalla ? 'center center' : 'top left';
     marco.style.transform = 'scale(' + k + ')';
+
+    if (!enPantalla) {
+      // el ancho mínimo evita que la caja, ya encogida, apriete al marco
+      marco.style.minWidth = w + 'px';
+      caja.style.width = Math.round(w * k) + 'px';
+      caja.style.height = Math.round(h * k) + 'px';
+    }
+
     // el rompecabezas usa esta variable para agrandar la pieza que lleva en la mano
     document.documentElement.style.setProperty('--escala', k);
   }
 
   function alternar() {
+    if (!hayPantallaCompleta) return;
     if (document.fullscreenElement) {
       document.exitFullscreen();
     } else {
@@ -147,7 +202,6 @@
 
   document.addEventListener('keydown', function (e) {
     if (e.key === 'f' || e.key === 'F') {
-      // no robar la tecla si el jugador está escribiendo en algún campo
       var t = e.target;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
       e.preventDefault();
@@ -157,6 +211,12 @@
 
   document.addEventListener('fullscreenchange', ajustar);
   window.addEventListener('resize', ajustar);
+  window.addEventListener('orientationchange', function () { setTimeout(ajustar, 250); });
+
+  ajustar();
+  // la tipografía de píxel llega más tarde y cambia las medidas del panel
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(ajustar);
+  window.addEventListener('load', ajustar);
 
   window.Pantalla = { alternar: alternar, ajustar: ajustar };
 })();

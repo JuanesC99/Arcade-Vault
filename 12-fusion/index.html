@@ -80,7 +80,7 @@ h1{font-family:var(--pixel);font-size:13px;margin-bottom:18px;text-shadow:2px 2p
   <div class="box"><h2>PUNTOS</h2><div class="val" id="score">0</div></div>
   <div class="box"><h2>RÉCORD</h2><div class="val" id="best">0</div></div>
   <div class="box"><h2>MAYOR FICHA</h2><div class="val" id="max">2</div></div>
-  <div class="box">
+  <div class="box ancho solo-texto">
     <h2>CONTROLES</h2>
     <div class="keys">
       <b>Arrastra</b> con el ratón<br>
@@ -89,7 +89,7 @@ h1{font-family:var(--pixel);font-size:13px;margin-bottom:18px;text-shadow:2px 2p
       <b>R</b> nueva partida
     </div>
   </div>
-  <div class="box">
+  <div class="box ancho solo-texto">
     <h2>REGLAS</h2>
     <div class="keys">Dos fichas iguales se funden en una del doble. Llega a 2048 y puedes seguir jugando.</div>
   </div>
@@ -98,6 +98,8 @@ h1{font-family:var(--pixel);font-size:13px;margin-bottom:18px;text-shadow:2px 2p
 
 <script src="../04-arcade-vault/salon.js"></script>
 <script src="../04-arcade-vault/pantalla.js"></script>
+<script>window.MANDO = { acciones: [{ k:'r', txt:'NUEVA' }] };</script>
+<script src="../04-arcade-vault/movil.js"></script>
 <script>
 const N = 4;
 const rejillaEl = document.getElementById('rejilla');

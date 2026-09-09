@@ -551,8 +551,9 @@ footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
 
 .marco{
   position:relative;
-  width:792px;
-  height:541px;
+  /* el tamaño sale de la escala que calcula el guion al abrir la vista */
+  width:calc(1200px * var(--previa, .66));
+  height:calc(820px * var(--previa, .66));
   max-width:100%;
   overflow:hidden;
   background:#05040c;
@@ -563,7 +564,7 @@ footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
   width:1200px;
   height:820px;
   border:0;
-  transform:scale(.66);
+  transform:scale(var(--previa, .66));
   transform-origin:top left;
 }
 .modal-pie{
@@ -672,11 +673,37 @@ footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
   .columns{grid-template-columns:1fr}
   .grid{grid-template-columns:1fr}
   .nav{display:none}
+  /* sin esto, las fichas del catálogo se niegan a encogerse por debajo
+     de su contenido y la página desborda a lo ancho en el móvil */
+  .columns > *, .grid, .card, .card .pad{min-width:0}
+  .card h4, .card .genre{overflow-wrap:anywhere}
 }
-@media(max-width:560px){
+@media(max-width:700px){
+  .topbar-inner{flex-wrap:wrap;gap:10px;padding:10px 14px}
+  .logo{font-size:11px}
+  .wallet{font-size:8px;padding:7px 10px}
+  .chips-inner{padding:8px 14px;gap:6px}
+  .chip{font-size:11px;padding:4px 9px}
+  .wrap{padding:22px 14px 60px}
+  .hero-art{min-height:190px}
+  .hero-title{font-size:13px}
+  .hero-side{padding:18px 16px}
+  .buyrow{flex-wrap:wrap}
+  .btn{padding:14px 12px}
+  .btn.secundario{flex:1 1 100%}
   .strip{grid-template-columns:repeat(3,1fr)}
-  .topbar-inner{gap:14px}
-  .card{grid-template-columns:110px 1fr}
+  .card{grid-template-columns:104px 1fr}
+  .card h4{font-size:14px}
+  .card .mini{display:none}
+  .columns{gap:28px}
+  .hof-grid{grid-template-columns:1fr}
+  .hof-cabecera input{width:100%}
+  .modal{padding:10px}
+  .modal-barra{flex-wrap:wrap;gap:8px;padding:10px 12px}
+  .modal-barra h3{flex:1 1 100%;font-size:10px}
+  .modal-barra a,.modal-barra button{flex:1;text-align:center;font-size:8px}
+  .modal-pie{font-size:11px}
+  footer{padding:20px 14px}
 }
 </style>
 </head>
@@ -970,7 +997,14 @@ const modalFrame = document.getElementById('modalFrame');
 const modalTitulo = document.getElementById('modalTitulo');
 const modalAbrir = document.getElementById('modalAbrir');
 
+function escalaPrevia(){
+  // el marco interior mide 1200x820; se encoge hasta caber en la ventana
+  const k = Math.min(0.66, (innerWidth - 40) / 1200, (innerHeight - 190) / 820);
+  document.documentElement.style.setProperty('--previa', Math.max(0.22, k));
+}
+
 function abrirPrevia(juego){
+  escalaPrevia();
   modalTitulo.textContent = juego.t;
   modalAbrir.href = juego.url;
   modalFrame.src = juego.url;
@@ -982,6 +1016,7 @@ function cerrarPrevia(){
   modalFrame.src = 'about:blank';
 }
 
+window.addEventListener('resize', () => { if(modal.classList.contains('show')) escalaPrevia(); });
 document.getElementById('modalCerrar').addEventListener('click', cerrarPrevia);
 modal.addEventListener('click', e => { if(e.target === modal) cerrarPrevia(); });
 document.addEventListener('keydown', e => { if(e.key === 'Escape') cerrarPrevia(); });

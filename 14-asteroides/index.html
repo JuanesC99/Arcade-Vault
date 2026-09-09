@@ -59,7 +59,7 @@ canvas{display:block}
   <div class="box"><h2>PUNTOS</h2><div class="val" id="score">0</div></div>
   <div class="box"><h2>OLEADA</h2><div class="val" id="wave">1</div></div>
   <div class="box"><h2>NAVES</h2><div class="val" id="lives">3</div></div>
-  <div class="box">
+  <div class="box ancho solo-texto">
     <h2>CONTROLES</h2>
     <div class="keys">
       <b>← →</b> girar<br>
@@ -68,7 +68,7 @@ canvas{display:block}
       <b>P</b> pausa
     </div>
   </div>
-  <div class="box">
+  <div class="box ancho solo-texto">
     <h2>REGLAS</h2>
     <div class="keys">La nave no frena sola, solo pierde inercia poco a poco. Los bordes de la pantalla dan la vuelta.</div>
   </div>
@@ -77,6 +77,8 @@ canvas{display:block}
 
 <script src="../04-arcade-vault/salon.js"></script>
 <script src="../04-arcade-vault/pantalla.js"></script>
+<script>window.MANDO = { cruceta:'nave', acciones: [{ k:' ', txt:'FUEGO' }, { k:'p', txt:'PAUSA' }] };</script>
+<script src="../04-arcade-vault/movil.js"></script>
 <script>
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');

@@ -35,6 +35,31 @@ En casi todas, `P` pausa la partida. En todas, `F` o el botón del panel lateral
 
 Se agranda el marco, no el lienzo. Cada cabina sigue trabajando en sus coordenadas de siempre, porque `getBoundingClientRect` ya devuelve el tamaño escalado y es justo lo que usan para traducir la posición del ratón. Verificado en Arkanoid, en el cuatro en línea y en el rompecabezas, que son los tres casos donde más se notaría un desajuste.
 
+## En el móvil
+
+`04-arcade-vault/movil.js` monta un mando en pantalla y adapta la maquetación cuando el ancho baja de 900 píxeles. El panel lateral pasa debajo del juego en dos columnas, y las cajas de controles y reglas se ocultan porque el mando ya las sustituye.
+
+Los botones del mando no llaman a ninguna función de los juegos: disparan eventos de teclado con la misma tecla que la cabina ya escuchaba. Por eso ningún juego necesitó cambiar su lógica para funcionar con el dedo.
+
+Cada cabina declara el mando que necesita antes de cargar el archivo:
+
+```html
+<script>window.MANDO = { cruceta:'tetris', acciones:[{ k:' ', txt:'SOLTAR' }] };</script>
+```
+
+| Mando | Cabinas |
+|---|---|
+| Cruceta de cuatro | Cable Suelto, Cruce Peligroso |
+| Izquierda y derecha | Lluvia de Marcianos |
+| Cruceta de Tetris | Bloques de Bolsillo |
+| Nave, con empuje | Chatarra Espacial |
+| Arrastre del dedo | Arkanoid, Duelo de Palas |
+| Toque en el lienzo | Vuelo Rasante |
+| Solo botones sueltos | Campo Minado, Fusión, Piezas Sueltas, Cuatro en Línea |
+| Ninguno, ya se toca | Memoria Neón, Metro Rush |
+
+Arkanoid, Duelo de Palas y Vuelo Rasante solo escuchaban el ratón. En vez de tocar esos juegos, `movil.js` traduce el toque a un evento de ratón sobre el mismo lienzo. El campo minado gana un botón que cambia lo que hace el toque, para poder poner banderas sin clic derecho.
+
 ## La tienda
 
 `04-arcade-vault` es el catálogo del salón, con el aspecto de una tienda de videojuegos.

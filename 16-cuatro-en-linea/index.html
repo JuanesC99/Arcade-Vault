@@ -75,14 +75,14 @@ canvas{display:block;cursor:pointer}
   </div>
   <div class="box"><h2>FICHAS PUESTAS</h2><div class="val" id="fichas">0</div></div>
   <div class="box"><h2>GANADAS</h2><div class="val" id="ganadas">0</div></div>
-  <div class="box">
+  <div class="box ancho">
     <h2>RIVAL</h2>
     <div class="fila" id="rival">
       <button data-r="maquina" class="on">Máquina</button>
       <button data-r="humano">2 jugadores</button>
     </div>
   </div>
-  <div class="box">
+  <div class="box ancho">
     <h2>DIFICULTAD</h2>
     <div class="fila" id="nivel">
       <button data-n="2">Fácil</button>
@@ -90,7 +90,7 @@ canvas{display:block;cursor:pointer}
       <button data-n="6">Duro</button>
     </div>
   </div>
-  <div class="box">
+  <div class="box ancho solo-texto">
     <h2>CONTROLES</h2>
     <div class="keys">
       <b>Clic</b> en una columna<br>
@@ -103,6 +103,8 @@ canvas{display:block;cursor:pointer}
 
 <script src="../04-arcade-vault/salon.js"></script>
 <script src="../04-arcade-vault/pantalla.js"></script>
+<script>window.MANDO = { acciones: [{ k:'r', txt:'NUEVA' }] };</script>
+<script src="../04-arcade-vault/movil.js"></script>
 <script>
 const COLS = 7, FILAS = 6, CELDA = 80;
 const cv = document.getElementById('cv');

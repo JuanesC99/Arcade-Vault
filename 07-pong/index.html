@@ -74,16 +74,16 @@ canvas{display:block; cursor:none}
 
 <div class="side">
   <div class="box"><h2>TÚ</h2><div class="val" id="p1">0</div></div>
-  <div class="box"><h2>RIVAL</h2><div class="val" id="p2">0</div></div>
+  <div class="box ancho"><h2>RIVAL</h2><div class="val" id="p2">0</div></div>
   <div class="box"><h2>PELOTEO MÁS LARGO</h2><div class="val" id="rally">0</div></div>
-  <div class="box">
+  <div class="box ancho">
     <h2>MODO</h2>
     <div class="modo">
       <button id="m1" class="on">1 JUGADOR</button>
       <button id="m2">2 JUGADORES</button>
     </div>
   </div>
-  <div class="box">
+  <div class="box ancho solo-texto">
     <h2>CONTROLES</h2>
     <div class="keys">
       <b>Ratón</b> o <b>↑ ↓</b> pala izquierda<br>
@@ -96,6 +96,8 @@ canvas{display:block; cursor:none}
 
 <script src="../04-arcade-vault/salon.js"></script>
 <script src="../04-arcade-vault/pantalla.js"></script>
+<script>window.MANDO = { acciones: [{ k:'p', txt:'PAUSA' }], arrastre: true };</script>
+<script src="../04-arcade-vault/movil.js"></script>
 <script>
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');

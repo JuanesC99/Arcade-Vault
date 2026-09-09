@@ -58,7 +58,7 @@ canvas{display:block;cursor:pointer}
 <div class="side">
   <div class="box"><h2>PUERTAS</h2><div class="val" id="score">0</div></div>
   <div class="box"><h2>RÉCORD</h2><div class="val" id="best">0</div></div>
-  <div class="box">
+  <div class="box ancho solo-texto">
     <h2>CONTROLES</h2>
     <div class="keys">
       <b>Espacio</b> o <b>clic</b> impulso<br>
@@ -66,7 +66,7 @@ canvas{display:block;cursor:pointer}
       <b>P</b> pausa
     </div>
   </div>
-  <div class="box">
+  <div class="box ancho solo-texto">
     <h2>REGLAS</h2>
     <div class="keys">Pasa entre las torres. El hueco se estrecha cada cinco puertas y la nave acelera.</div>
   </div>
@@ -75,6 +75,8 @@ canvas{display:block;cursor:pointer}
 
 <script src="../04-arcade-vault/salon.js"></script>
 <script src="../04-arcade-vault/pantalla.js"></script>
+<script>window.MANDO = { acciones: [{ k:' ', txt:'IMPULSO' }, { k:'p', txt:'PAUSA' }], toque: true };</script>
+<script src="../04-arcade-vault/movil.js"></script>
 <script>
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');

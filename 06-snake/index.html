@@ -69,7 +69,7 @@ canvas{display:block}
   <div class="box"><h2>PUNTOS</h2><div class="val" id="score">0</div></div>
   <div class="box"><h2>RÉCORD</h2><div class="val" id="best">0</div></div>
   <div class="box"><h2>LARGO</h2><div class="val" id="len">3</div></div>
-  <div class="box">
+  <div class="box ancho solo-texto">
     <h2>CONTROLES</h2>
     <div class="keys">
       <b>← ↑ → ↓</b> girar<br>
@@ -77,7 +77,7 @@ canvas{display:block}
       <b>P</b> pausa
     </div>
   </div>
-  <div class="box">
+  <div class="box ancho solo-texto">
     <h2>REGLAS</h2>
     <div class="keys">
       Chocar con el muro o contigo termina la partida. Cada chispa alarga el cable y acelera un poco.
@@ -88,6 +88,8 @@ canvas{display:block}
 
 <script src="../04-arcade-vault/salon.js"></script>
 <script src="../04-arcade-vault/pantalla.js"></script>
+<script>window.MANDO = { cruceta:'cuatro', acciones: [{ k:'p', txt:'PAUSA' }] };</script>
+<script src="../04-arcade-vault/movil.js"></script>
 <script>
 const CELDA = 20;
 const cv = document.getElementById('cv');
