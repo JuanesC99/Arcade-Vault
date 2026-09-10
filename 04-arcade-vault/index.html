@@ -672,6 +672,11 @@ footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
   repeating-linear-gradient(to bottom, rgba(0,0,0,.35) 0 10px, transparent 10px 20px),
   radial-gradient(circle at 50% 68%, #ffb020 0 13%, transparent 13%),
   linear-gradient(#141224,#0a0814)}
+.a16{background-image:
+  linear-gradient(rgba(7,6,13,0) 55%, rgba(7,6,13,.9) 55%),
+  radial-gradient(circle at 74% 24%, rgba(233,229,255,.9) 0 7%, transparent 7%),
+  repeating-linear-gradient(90deg, rgba(43,58,122,.55) 0 12px, transparent 12px 30px),
+  linear-gradient(#2b1246,#120b26)}
 
 @media(max-width:980px){
   .hero{grid-template-columns:1fr}
@@ -726,7 +731,7 @@ footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
       <a href="#biblioteca">Biblioteca</a>
       <a href="#hall">Hall of Fame</a>
     </nav>
-    <div class="wallet"><span class="coin"></span> 15 CABINAS</div>
+    <div class="wallet"><span class="coin"></span> 16 CABINAS</div>
   </div>
 </header>
 
@@ -747,6 +752,7 @@ footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
     <button class="chip" data-genre="travesía">Travesía</button>
     <button class="chip" data-genre="mesa">Mesa</button>
     <button class="chip" data-genre="tanques">Tanques</button>
+    <button class="chip" data-genre="plataformas">Plataformas</button>
   </div>
 </div>
 
@@ -791,7 +797,7 @@ footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
       </div>
       <div class="marquee reveal" style="animation-delay:.34s">
         <h3>AVISOS</h3>
-        <div class="ticker"><span>TODAS LAS CABINAS CORREN EN LOCAL · SIN INSTALAR NADA · QUINCE JUEGOS EN HTML Y JAVASCRIPT PURO · PULSA P PARA PAUSAR EN CUALQUIERA · NO GOLPEES LA MÁQUINA</span></div>
+        <div class="ticker"><span>TODAS LAS CABINAS CORREN EN LOCAL · SIN INSTALAR NADA · DIECISÉIS JUEGOS EN HTML Y JAVASCRIPT PURO · PULSA P PARA PAUSAR EN CUALQUIERA · NO GOLPEES LA MÁQUINA</span></div>
       </div>
     </aside>
   </div>
@@ -825,7 +831,7 @@ footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
 
 <footer>
   <a class="logo" href="#">ARCADE<span>VAULT</span></a>
-  <p>SALÓN LOCAL · 15 CABINAS EN 01-FIRSTCODE · 2026</p>
+  <p>SALÓN LOCAL · 16 CABINAS EN 01-FIRSTCODE · 2026</p>
 </footer>
 
 <script src="salon.js"></script>
@@ -936,6 +942,13 @@ const JUEGOS = [
     jugadores:'1 jugador', controles:'Flechas o WASD y espacio',
     tags:['Tanques','Cinco fases','Seis premios','Defender la base'],
     d:'Veinte tanques por fase y un águila que no puede caer. El muro de ladrillo se deshace a tiros, el de acero solo con el tercer ascenso, y bajo los árboles nadie te ve venir.'
+  },
+  {
+    t:'Filo de Sombra', g:'plataformas', a:'a16',
+    url:'../18-filo-de-sombra/index.html', carpeta:'18-filo-de-sombra',
+    jugadores:'1 jugador', controles:'Flechas o WASD, espacio, Z y X',
+    tags:['Plataformas','Trepar muros','Tres actos','Jefes'],
+    d:'Un ninja que se agarra a las paredes y sube a saltos de muro en muro. Tres actos con farol que romper, artes ninja que gastan espíritu y un jefe esperando al final de cada uno.'
   },
 ];
 
