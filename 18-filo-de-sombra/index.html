@@ -67,7 +67,7 @@ canvas{display:block}
       <b>← →</b> correr · <b>↓</b> agacharse<br>
       <b>Espacio</b> saltar<br>
       <b>Z</b> espada · <b>X</b> arte ninja<br>
-      <b>P</b> pausa · <b>F</b> pantalla
+      <b>P</b> pausa · <b>F</b> pantalla · <b>M</b> sonido
     </div>
   </div>
   <div class="box ancho solo-texto">
@@ -79,11 +79,14 @@ canvas{display:block}
 
 <script src="../04-arcade-vault/salon.js"></script>
 <script src="../04-arcade-vault/pantalla.js"></script>
+<script src="../04-arcade-vault/sonido.js"></script>
 <script>window.MANDO = { cruceta:'cuatro', acciones: [
   { k:' ', txt:'SALTO' }, { k:'z', txt:'ESPADA' }, { k:'x', txt:'NINPO' }
 ] };</script>
 <script src="../04-arcade-vault/movil.js"></script>
 <script>
+const sfx = n => window.Sonido && Sonido.efecto(n);
+
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
 const W = cv.width, H = cv.height;
@@ -547,9 +550,11 @@ function saltar(){
     j.mirando = -j.pared;
     j.saltoPared = 0.1;
     j.pared = 0;
+    sfx('saltoPared');
     polvo(j.x + j.w/2, j.y + j.h/2, '#8b83b4');
   } else if(j.suelo){
     j.vy = -580;
+    sfx('salto');
   }
 }
 
@@ -557,6 +562,7 @@ function atacar(){
   const j = jugador;
   if(j.ataque > 0) return;
   j.ataque = 0.24;
+  sfx('espada');
 }
 
 function usarArte(){
@@ -572,6 +578,7 @@ function usarArte(){
   } else {
     j.rueda = 4;                       // la rueda de fuego gira alrededor un rato
   }
+  sfx('ninpo');
   pintarHud();
 }
 
@@ -583,6 +590,7 @@ function herirJugador(dano, desde){
   j.vx = (j.x + j.w/2 < desde ? -1 : 1) * 210;
   j.vy = -230;
   j.pared = 0;
+  sfx('dano');
   polvo(j.x + j.w/2, j.y + 16, '#ff2e88');
   if(j.vida <= 0) morir();
   pintarHud();
@@ -590,6 +598,7 @@ function herirJugador(dano, desde){
 
 function morir(){
   vidas--;
+  sfx('muerte');
   polvo(jugador.x + jugador.w/2, jugador.y + 20, '#ff2e88', 18);
   pintarHud();
   if(vidas < 0) return terminar(false, 'Ryu cae en el intento');
@@ -721,6 +730,7 @@ function moverBichos(dt){
 function herirBicho(b, dano, x){
   b.vida -= dano;
   b.golpe = 0.12;
+  sfx('corte');
   polvo(x, b.y + b.h/2, '#ffe9a8', 5);
   if(b.vida <= 0){
     score += BICHOS[b.clase].puntos;
@@ -734,6 +744,7 @@ function herirBicho(b, dano, x){
 
 function romperFarol(c, f){
   mapa[f][c] = ' ';
+  sfx('ladrillo');
   polvo(c * TILE + 16, f * TILE + 16, '#ffb020', 9);
   score += 50;
   soltarObjeto(c * TILE, f * TILE);
@@ -773,6 +784,7 @@ function recoger(o){
   else if(o.clase === 'rojo')     { j.ninpo += 10; soplar('ESPÍRITU +10'); }
   else if(o.clase === 'puntos')   { score += 500; soplar('500 PUNTOS'); }
   else { j.arte = o.clase; soplar(ARTES[o.clase].nombre.toUpperCase()); }
+  sfx(o.clase === 'vida' ? 'vida' : 'premio');
   score += 100;
   pintarHud();
 }
@@ -841,6 +853,7 @@ function despertarJefe(){
   };
   camaraMin = camara;
   camaraMax = camara;                  // la cámara se clava en la arena
+  sfx('campana');
   soplar(jefeFicha.nombre);
 }
 
@@ -850,6 +863,7 @@ function herirJefe(dano, x){
   polvo(x, jefe.y + jefe.h/2, '#ffe9a8', 5);
   if(jefe.vida <= 0){
     score += 3000;
+    sfx('explosion');
     polvo(jefe.x + jefe.w/2, jefe.y + jefe.h/2, jefeFicha.color, 26);
     jefe = null;
     camaraMin = 0;
@@ -900,6 +914,7 @@ function polvo(x, y, color, n){
 }
 
 function empezarActo(n){
+  window.Sonido && Sonido.melodia('sombra');
   montarActo(n);
   colocarJugador();
   aviso = acto.nombre;
@@ -909,6 +924,7 @@ function empezarActo(n){
 
 function actoSuperado(){
   const n = ACTOS.indexOf(acto) + 1;
+  sfx('nivel');
   score += 1000 + Math.floor(tiempo) * 10;
   if(n >= ACTOS.length) return terminar(true, 'El templo queda en silencio');
   estado = 'entreacto';
@@ -930,6 +946,7 @@ function arrancar(){
 function terminar(gano, motivo){
   if(estado === 'fin') return;
   estado = 'fin';
+  window.Sonido && Sonido.melodia(null);
   window.Hall && Hall.registrar('18-filo-de-sombra', score, { unidad:'pts', etiqueta: acto.nombre.split(' · ')[0].toLowerCase() });
   el.overTitle.textContent = gano ? 'MISIÓN CUMPLIDA' : 'GAME OVER';
   el.overText.innerHTML = motivo + '<br>' + score + ' puntos';

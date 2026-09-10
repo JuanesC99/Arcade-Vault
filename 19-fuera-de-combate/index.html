@@ -67,7 +67,7 @@ canvas{display:block}
       <b>Z</b> izquierda · <b>X</b> derecha<br>
       <b>↑</b> + golpe: a la cara<br>
       <b>Espacio</b> gancho de estrella<br>
-      <b>P</b> pausa · <b>F</b> pantalla
+      <b>P</b> pausa · <b>F</b> pantalla · <b>M</b> sonido
     </div>
   </div>
   <div class="box ancho solo-texto">
@@ -79,11 +79,14 @@ canvas{display:block}
 
 <script src="../04-arcade-vault/salon.js"></script>
 <script src="../04-arcade-vault/pantalla.js"></script>
+<script src="../04-arcade-vault/sonido.js"></script>
 <script>window.MANDO = { cruceta:'cuatro', acciones: [
   { k:'z', txt:'IZQ' }, { k:'x', txt:'DER' }, { k:' ', txt:'ESTRELLA' }
 ] };</script>
 <script src="../04-arcade-vault/movil.js"></script>
 <script>
+const sfx = n => window.Sonido && Sonido.efecto(n);
+
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
 const W = cv.width, H = cv.height;
@@ -185,6 +188,7 @@ function empezarCombate(n){
 }
 
 function nuevaRonda(){
+  sfx('campana');
   ronda++;
   tiempo = DURACION;
   rival.estado = 'quieto'; rival.t = 1.6;
@@ -213,6 +217,7 @@ function pensarRival(dt){
       R.ataque = eligeAtaque();
       R.estado = 'aviso';
       R.t = ficha.aviso;
+      sfx('aviso');
     }
   } else if(R.estado === 'aviso'){
     if(R.t <= 0){
@@ -264,10 +269,12 @@ function resolverGolpe(){
   if(salida === 'limpia'){
     J.contra = 0.8;
     rival.abierto = 1;
+    sfx('esquiva');
     soplar('¡ESQUIVA!');
     ganarEstrella();
   } else if(salida === 'bloqueada'){
     J.corazones = Math.max(0, J.corazones - 2);
+    sfx('bloqueo');
     herirJugador(Math.ceil(ficha.dano * 0.25), true);
     soplar('BLOQUEADO');
   } else if(salida === 'rozada'){
@@ -279,6 +286,7 @@ function resolverGolpe(){
 
 function ganarEstrella(){
   if(jugador.estrellas < 3){
+    sfx('estrella');
     jugador.estrellas++;
     score += 200;
   }
@@ -297,6 +305,7 @@ function pegar(mano, estrella){
     J.estrellas = 0;
     J.golpe = { mano, tipo:'estrella' };
     J.golpeT = 0.42;
+    sfx('swing');
     impactar(14, 'estrella');
     pintarHud();
     return;
@@ -307,6 +316,7 @@ function pegar(mano, estrella){
   J.corazones--;
   J.golpe = { mano, tipo: alto ? 'cara' : 'cuerpo' };
   J.golpeT = 0.26;
+  sfx('swing');
   impactar(alto ? 4 : 3, alto ? 'cara' : 'cuerpo');
   pintarHud();
 }
@@ -347,6 +357,7 @@ function impactar(base, tipo){
 
   // rival cubierto: casi todo rebota, y a veces te lo devuelve
   if(Math.random() < ficha.guardia){
+    sfx('bloqueo');
     soplar('SE CUBRE');
     J.corazones = Math.max(0, J.corazones - 1);
     if(Math.random() < 0.3){
@@ -359,6 +370,7 @@ function impactar(base, tipo){
 
 function dañar(n){
   const R = rival;
+  sfx('impacto');
   R.vida -= n;
   R.golpeado = 0.16;
   dañoHecho += n;
@@ -373,6 +385,7 @@ function herirJugador(n, bloqueado){
   J.vida -= n;
   dañoRecibido += n;
   if(!bloqueado){
+    sfx('impacto');
     J.corazones = Math.max(0, J.corazones - 3);
     J.aturdido = 0.45;
     J.esquivaT = 0;
@@ -391,6 +404,7 @@ function tumbarRival(){
   rival.estado = 'caido';
   score += 1500;
   cuenta = 1; cuentaT = 0.8;
+  sfx('caida');
   estado = 'cuenta_rival';
   soplar('¡A LA LONA!');
   pintarHud();
@@ -402,6 +416,7 @@ function tumbarJugador(){
   jugador.caido = 1;
   jugador.levantar = 0;
   cuenta = 1; cuentaT = 0.9;
+  sfx('caida');
   estado = 'cuenta_jugador';
   soplar('¡ABAJO!');
   pintarHud();
@@ -412,6 +427,7 @@ function correrCuenta(dt){
   if(cuentaT > 0) return;
   cuenta++;
   cuentaT = estado === 'cuenta_rival' ? 0.8 : 0.9;
+  if(cuenta <= 10) sfx('cuenta');
 
   if(estado === 'cuenta_rival'){
     if(rival.caidas >= 3 || cuenta > 9){
@@ -442,6 +458,7 @@ function correrCuenta(dt){
 /* ---------------- fin de combate ---------------- */
 
 function ganarCombate(motivo){
+  sfx('nivel');
   score += ficha.puntos + Math.floor(tiempo) * 20;
   if(cual >= RIVALES.length - 1) return terminar(true, 'Campeón: ' + motivo);
   estado = 'entrecombate';
@@ -464,6 +481,7 @@ function decision(){
 function terminar(gano, motivo){
   if(estado === 'fin') return;
   estado = 'fin';
+  window.Sonido && Sonido.melodia(null);
   window.Hall && Hall.registrar('19-fuera-de-combate', score, { unidad:'pts', etiqueta:'rival ' + (cual + 1) });
   el.overTitle.textContent = gano ? 'CINTURÓN' : 'GAME OVER';
   el.overText.innerHTML = motivo + '<br>' + score + ' puntos';
@@ -492,7 +510,12 @@ function actualizar(dt){
   chispas = chispas.filter(p => { p.t += dt; p.x += p.vx*dt; p.y += p.vy*dt; return p.t < p.dur; });
 
   if(estado === 'presentacion'){
-    if(animT > 2.6){ estado = 'peleando'; animT = 0; }
+    if(animT > 2.6){
+      estado = 'peleando';
+      animT = 0;
+      sfx('campana');
+      window.Sonido && Sonido.melodia('combate');
+    }
     return;
   }
   if(estado === 'cuenta_rival' || estado === 'cuenta_jugador') return correrCuenta(dt);

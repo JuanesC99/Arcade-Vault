@@ -30,11 +30,11 @@ Cada juego también funciona por su cuenta: abre el `index.html` de su carpeta.
 | `18-filo-de-sombra` | Filo de Sombra | Plataformas de acción | Flechas, espacio, Z y X |
 | `19-fuera-de-combate` | Fuera de Combate | Boxeo | Flechas, Z, X y espacio |
 
-En casi todas, `P` pausa la partida. En todas, `F` o el botón del panel lateral ponen el juego a pantalla completa.
+En casi todas, `P` pausa la partida. En todas, `F` o el botón del panel lateral ponen el juego a pantalla completa. En las tres que suenan, `M` silencia.
 
 ## Pantalla completa
 
-`04-arcade-vault/pantalla.js` es el otro archivo común. Añade el botón y la tecla, esconde el panel y agranda el marco del juego con `transform: scale` hasta llenar la pantalla, respetando su proporción.
+`04-arcade-vault/pantalla.js` es uno de los cuatro archivos comunes del salón. Añade el botón y la tecla, esconde el panel y agranda el marco del juego con `transform: scale` hasta llenar la pantalla, respetando su proporción.
 
 Se agranda el marco, no el lienzo. Cada cabina sigue trabajando en sus coordenadas de siempre, porque `getBoundingClientRect` ya devuelve el tamaño escalado y es justo lo que usan para traducir la posición del ratón. Verificado en Arkanoid, en el cuatro en línea y en el rompecabezas, que son los tres casos donde más se notaría un desajuste.
 
@@ -75,7 +75,7 @@ Las carátulas no son imágenes. Se generan con degradados de CSS, así que el r
 
 ## El marcador compartido
 
-`04-arcade-vault/salon.js` es el único archivo común. Las cabinas lo cargan y, al terminar una partida, dejan su resultado:
+`04-arcade-vault/salon.js` es el primero de los archivos comunes. Las cabinas lo cargan y, al terminar una partida, dejan su resultado:
 
 ```js
 window.Hall && Hall.registrar('06-snake', score, { unidad: 'pts' });
@@ -93,6 +93,28 @@ Cada juego guarda la medida que le corresponde, y el marcador sabe cuándo lo bu
 | Peloteo más largo | Duelo de Palas | mayor |
 | Segundos | Campo Minado, Piezas Sueltas | menor |
 | Fichas para ganar | Cuatro en Línea | menor |
+
+## Sonido
+
+`04-arcade-vault/sonido.js` es el cuarto archivo común, y no trae ni un solo archivo de audio: todo sale de osciladores y ruido blanco de la Web Audio API, así que el repositorio no engorda ni un byte por sonar.
+
+```js
+const sfx = n => window.Sonido && Sonido.efecto(n);
+sfx('disparo');
+window.Sonido && Sonido.melodia('tanques');
+```
+
+El catálogo tiene una treintena de efectos y tres melodías de dieciséis compases, cada una con su línea de bajo. El bucle se programa por adelantado sobre el reloj del audio, que es el único que no se desfasa cuando la pestaña se atasca.
+
+Los navegadores no dejan sonar nada hasta que el usuario toca algo, así que el contexto se crea en el primer gesto y no antes. Si la pestaña pasa a segundo plano, se suspende sola.
+
+El botón del panel lateral y la tecla `M` lo silencian todo, y la elección se guarda en `localStorage` para las demás cabinas.
+
+| Cabina | Melodía | Suenan |
+|---|---|---|
+| Brigada Acorazada | Marcha en la menor | Disparos, ladrillo contra acero, explosiones y premios |
+| Filo de Sombra | Tema rápido en mi menor | Espada, salto de muro, artes ninja y faroles |
+| Fuera de Combate | Marcha en do mayor | Campana, esquivas, impactos y la cuenta hasta diez |
 
 ## Desarrollo guiado por specs
 

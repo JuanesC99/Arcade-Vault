@@ -71,7 +71,7 @@ canvas{display:block}
     <div class="keys">
       <b>Flechas</b> o <b>WASD</b> mover<br>
       <b>Espacio</b> disparar<br>
-      <b>P</b> pausa · <b>F</b> pantalla
+      <b>P</b> pausa · <b>F</b> pantalla · <b>M</b> sonido
     </div>
   </div>
   <div class="box ancho solo-texto">
@@ -83,9 +83,12 @@ canvas{display:block}
 
 <script src="../04-arcade-vault/salon.js"></script>
 <script src="../04-arcade-vault/pantalla.js"></script>
+<script src="../04-arcade-vault/sonido.js"></script>
 <script>window.MANDO = { cruceta:'cuatro', acciones: [{ k:' ', txt:'FUEGO' }, { k:'p', txt:'PAUSA' }] };</script>
 <script src="../04-arcade-vault/movil.js"></script>
 <script>
+const sfx = n => window.Sonido && Sonido.efecto(n);
+
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
 const W = cv.width, H = cv.height;
@@ -328,13 +331,17 @@ function disparar(t, vel, dueno){
     y: cy + (t.dir === 2 ? off : t.dir === 0 ? -off : 0),
     dir: t.dir, vel, dueno, tanque: t,
   });
+  sfx('disparo');
 }
 
 function balasDe(t){ return balas.filter(b => b.tanque === t).length; }
 
 /* Rompe el muro justo delante de la bala, en una franja de dos ladrillos:
    el mismo boquete que deja un tanque al pasar. */
+/* Devuelve si algo se vino abajo: el ladrillo suena distinto del
+   acero que aguanta el impacto. */
 function derribar(b, perfora){
+  let cayo = false;
   const vert = b.dir === 0 || b.dir === 2;
   const ancho = SUB * 2 - 4;
   const zona = vert
@@ -346,9 +353,10 @@ function derribar(b, perfora){
   for(let sy = y0; sy <= y1; sy++){
     for(let sx = x0; sx <= x1; sx++){
       const v = celda(sx, sy);
-      if(v === LADRILLO || (v === ACERO && perfora)) ponerCelda(sx, sy, VACIO);
+      if(v === LADRILLO || (v === ACERO && perfora)){ ponerCelda(sx, sy, VACIO); cayo = true; }
     }
   }
+  return cayo;
 }
 
 function balaChoca(b){
@@ -379,13 +387,14 @@ function moverBalas(dt){
 
       if(baseViva && chocan(r, { x:BASE_X*SUB, y:BASE_Y*SUB, w:TQ, h:TQ })){
         baseViva = false;
+        sfx('explosion');
         boom(BASE_X*SUB + TQ/2, BASE_Y*SUB + TQ/2, 46);
         terminar('HAN VOLADO EL ÁGUILA');
         return false;
       }
 
       if(balaChoca(b)){
-        derribar(b, b.dueno === 'jugador' && perfora);
+        sfx(derribar(b, b.dueno === 'jugador' && perfora) ? 'ladrillo' : 'metal');
         chispa(b);
         return false;
       }
@@ -442,6 +451,7 @@ function herir(e){
   e.vida--;
   if(e.vida > 0){ e.golpeado = 0.12; return; }
   score += TIPOS[e.tipo].puntos;
+  sfx('explosion');
   boom(e.x + TQ/2, e.y + TQ/2, 40);
   if(e.premio) soltarPremio();
   enemigos.splice(enemigos.indexOf(e), 1);
@@ -522,6 +532,7 @@ function recoger(p){
   else if(p.clase === 'pala')   { murallaBase(ACERO); palaT = 15; }
   else if(p.clase === 'tanque')   vidas++;
   else if(p.clase === 'reloj')    congelados = 8;
+  sfx(p.clase === 'tanque' || p.clase === 'casco' ? 'vida' : 'premio');
   aviso = PREMIO_TXT[p.clase];
   avisoT = 1.8;
   pintarHud();
@@ -545,6 +556,7 @@ function nacerJugador(){
 }
 
 function perderVida(){
+  sfx('muerte');
   boom(jugador.x + TQ/2, jugador.y + TQ/2, 44);
   jugador.vivo = false;
   jugador.grado = 0;                          // el tanque nuevo sale de serie
@@ -568,6 +580,7 @@ function empezarFase(n){
 }
 
 function faseSuperada(){
+  sfx('nivel');
   estado = 'entrefase';
   score += 300 + fase * 100;
   el.overTitle.textContent = 'FASE ' + fase + ' LIMPIA';
@@ -583,12 +596,14 @@ function arrancar(){
   jugador.escudo = 0;
   estado = 'jugando';
   empezarFase(1);
+  window.Sonido && Sonido.melodia('tanques');
   el.over.classList.remove('show');
 }
 
 function terminar(motivo){
   if(estado === 'fin') return;
   estado = 'fin';
+  window.Sonido && Sonido.melodia(null);
   window.Hall && Hall.registrar('17-tanques', score, { unidad:'pts', etiqueta:'fase ' + fase });
   el.overTitle.textContent = 'GAME OVER';
   el.overText.textContent = motivo + ' · ' + score + ' puntos · fase ' + fase;
