@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fuera de Combate</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🥊</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#07060d; --panel:#12101f; --edge:#2e2a4a;
+  --ink:#e9e5ff; --dim:#8b83b4; --neon:#ff2e88; --volt:#35f0d0; --amber:#ffb020;
+  --pixel:'Press Start 2P', monospace;
+  --body:'Chakra Petch', 'Trebuchet MS', sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--void);color:var(--ink);font-family:var(--body);min-height:100vh;
+     display:flex;align-items:center;justify-content:center;padding:20px;gap:26px;flex-wrap:wrap}
+body::before{content:'';position:fixed;inset:0;z-index:99;pointer-events:none;
+  background:repeating-linear-gradient(to bottom, rgba(0,0,0,.22) 0 1px, transparent 1px 3px)}
+h1{font-family:var(--pixel);font-size:13px;margin-bottom:18px;text-shadow:2px 2px 0 var(--amber)}
+.stage{position:relative;border:1px solid var(--edge);background:#05040c;
+       box-shadow:0 0 0 6px var(--panel), 0 20px 60px rgba(0,0,0,.7)}
+canvas{display:block}
+.side{width:196px}
+.box{border:1px solid var(--edge);background:var(--panel);padding:13px 14px;margin-bottom:12px}
+.box h2{font-family:var(--pixel);font-size:9px;color:var(--volt);margin-bottom:9px}
+.box .val{font-family:var(--pixel);font-size:15px;color:var(--amber)}
+.box .val.chico{font-size:10px;line-height:1.8}
+.keys{font-size:12px;color:var(--dim);line-height:1.9}
+.keys b{color:var(--ink);font-weight:600}
+.back{display:inline-block;margin-top:4px;font-family:var(--pixel);font-size:8px;
+      color:var(--void);background:var(--volt);padding:9px 11px;text-decoration:none}
+.back:hover{background:var(--neon);color:#12000a}
+.overlay{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;
+  justify-content:center;gap:16px;background:rgba(5,4,12,.88);text-align:center;padding:20px}
+.overlay.show{display:flex}
+.overlay p{font-family:var(--pixel);font-size:15px;line-height:1.9}
+.overlay small{color:var(--dim);font-size:13px;display:block;margin-top:6px;line-height:1.8}
+.overlay button{font-family:var(--pixel);font-size:10px;border:0;cursor:pointer;
+  background:var(--neon);color:#12000a;padding:13px 18px}
+.overlay button:hover{background:var(--volt);color:var(--void)}
+</style>
+</head>
+<body>
+
+<div>
+  <h1>FUERA DE COMBATE</h1>
+  <div class="stage">
+    <canvas id="cv" width="640" height="480"></canvas>
+    <div class="overlay show" id="over">
+      <p id="overTitle">FUERA DE COMBATE</p>
+      <small id="overText">Cada rival avisa antes de pegar<br>Esquiva a tiempo y su hueco es tuyo</small>
+      <button id="overBtn">SALIR AL RING</button>
+    </div>
+  </div>
+</div>
+
+<div class="side">
+  <div class="box"><h2>PUNTOS</h2><div class="val" id="score">0</div></div>
+  <div class="box"><h2>RIVAL</h2><div class="val chico" id="rival">1 de 3</div></div>
+  <div class="box"><h2>ASALTO</h2><div class="val" id="ronda">1</div></div>
+  <div class="box ancho solo-texto">
+    <h2>CONTROLES</h2>
+    <div class="keys">
+      <b>← →</b> esquivar · <b>↓</b> agacharse<br>
+      <b>Z</b> izquierda · <b>X</b> derecha<br>
+      <b>↑</b> + golpe: a la cara<br>
+      <b>Espacio</b> gancho de estrella<br>
+      <b>P</b> pausa · <b>F</b> pantalla
+    </div>
+  </div>
+  <div class="box ancho solo-texto">
+    <h2>EL OFICIO</h2>
+    <div class="keys">Quieto se cubre y tus golpes rebotan. Solo se abre justo después de fallar el suyo, y ahí es donde se gana. Esquivar da estrellas; sin aire no puedes pegar.</div>
+  </div>
+  <a class="back" href="../04-arcade-vault/index.html">&lt; VOLVER AL SALÓN</a>
+</div>
+
+<script src="../04-arcade-vault/salon.js"></script>
+<script src="../04-arcade-vault/pantalla.js"></script>
+<script>window.MANDO = { cruceta:'cuatro', acciones: [
+  { k:'z', txt:'IZQ' }, { k:'x', txt:'DER' }, { k:' ', txt:'ESTRELLA' }
+] };</script>
+<script src="../04-arcade-vault/movil.js"></script>
+<script>
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const W = cv.width, H = cv.height;
+
+const LONA = 372;                       // la altura del suelo del ring
+const RONDAS = 3, DURACION = 90;
+
+/* ============================================================
+   Todo el combate gira sobre el mismo ciclo:
+
+     quieto  ->  aviso  ->  golpe  ->  recuperando  ->  quieto
+
+   El aviso es el gesto que delata lo que viene. Esquivarlo abre
+   la ventana de contragolpe, que es la única forma de hacer daño
+   de verdad: con el rival quieto los golpes rebotan en su guardia.
+   ============================================================ */
+
+const ATAQUES = {
+  jab_izq:   { esquiva: -1, txt:'IZQUIERDAZO' },
+  jab_der:   { esquiva:  1, txt:'DERECHAZO' },
+  alto:      { agachar: true, txt:'GANCHO ALTO' },
+  cuerpo:    { guardia: true, txt:'AL CUERPO' },
+  embestida: { cortable: true, txt:'EMBESTIDA' },
+};
+
+const RIVALES = [
+  {
+    nombre:'MARCEL VIDRIO', mote:'El cristal de Marsella', pais:'FRANCIA',
+    vida: 30, dano: 4, ritmo:[1.2, 2.1], aviso: 0.75, recuperacion: 0.95,
+    repertorio:['jab_izq','jab_der','jab_izq','alto'],
+    guardia: 0.35, puntos: 4000,
+    piel:'#e8c9a0', pelo:'#c8983a', calzon:'#35f0d0', banda:'#e9e5ff',
+  },
+  {
+    nombre:'SARGENTO KAISER', mote:'Disciplina de hierro', pais:'ALEMANIA',
+    vida: 46, dano: 6, ritmo:[0.9, 1.6], aviso: 0.55, recuperacion: 0.78,
+    repertorio:['jab_izq','jab_der','alto','cuerpo','alto'],
+    guardia: 0.55, puntos: 7000,
+    piel:'#e0bb96', pelo:'#8b83b4', calzon:'#ff5a5a', banda:'#ffb020',
+  },
+  {
+    nombre:'TORO DE HIERRO', mote:'Nadie aguanta su carga', pais:'ESPAÑA',
+    vida: 62, dano: 8, ritmo:[0.75, 1.35], aviso: 0.42, recuperacion: 0.62,
+    repertorio:['jab_der','alto','cuerpo','jab_izq','embestida','alto'],
+    guardia: 0.7, puntos: 12000,
+    piel:'#c99a72', pelo:'#2b2740', calzon:'#ffb020', banda:'#ff2e88',
+  },
+];
+
+/* ---------------- estado ---------------- */
+
+let rival, ficha, jugador, estado, score, ronda, tiempo, cual;
+let animT, aviso, avisoT, cuenta, cuentaT, dañoHecho, dañoRecibido, chispas;
+let teclas = {};
+
+const el = {
+  score: document.getElementById('score'),
+  rival: document.getElementById('rival'),
+  ronda: document.getElementById('ronda'),
+  over: document.getElementById('over'),
+  overTitle: document.getElementById('overTitle'),
+  overText: document.getElementById('overText'),
+  overBtn: document.getElementById('overBtn'),
+};
+
+/* ---------------- montaje del combate ---------------- */
+
+function nuevoJugador(){
+  return {
+    vida: 40, vidaMax: 40,
+    corazones: 12, corazonesMax: 12, respiro: 0,
+    estrellas: 0, caidas: 0,
+    esquiva: 0, esquivaT: 0, agachado: false,
+    golpe: null, golpeT: 0, contra: 0, aturdido: 0,
+    caido: 0, levantar: 0,
+  };
+}
+
+function nuevoRival(n){
+  ficha = RIVALES[n];
+  return {
+    vida: ficha.vida, vidaMax: ficha.vida,
+    estado: 'quieto', t: 1.4, ataque: null, caidas: 0,
+    golpeado: 0, abierto: 0, cuentaAtras: 0,
+  };
+}
+
+function empezarCombate(n){
+  cual = n;
+  rival = nuevoRival(n);
+  jugador = nuevoJugador();
+  ronda = 1;
+  tiempo = DURACION;
+  dañoHecho = 0; dañoRecibido = 0;
+  chispas = [];
+  estado = 'presentacion';
+  avisoT = 0;
+  pintarHud();
+}
+
+function nuevaRonda(){
+  ronda++;
+  tiempo = DURACION;
+  rival.estado = 'quieto'; rival.t = 1.6;
+  jugador.esquiva = 0; jugador.agachado = false; jugador.golpe = null;
+  jugador.corazones = jugador.corazonesMax;
+  jugador.vida = Math.min(jugador.vidaMax, jugador.vida + 12);
+  rival.vida = Math.min(rival.vidaMax, rival.vida + Math.floor(rival.vidaMax * 0.15));
+  estado = 'peleando';
+  pintarHud();
+}
+
+/* ---------------- lo que hace el rival ---------------- */
+
+function eligeAtaque(){
+  const r = ficha.repertorio;
+  return r[Math.floor(Math.random() * r.length)];
+}
+
+function pensarRival(dt){
+  const R = rival;
+  R.t -= dt;
+  if(R.golpeado > 0) R.golpeado -= dt;
+
+  if(R.estado === 'quieto'){
+    if(R.t <= 0){
+      R.ataque = eligeAtaque();
+      R.estado = 'aviso';
+      R.t = ficha.aviso;
+    }
+  } else if(R.estado === 'aviso'){
+    if(R.t <= 0){
+      R.estado = 'golpe';
+      R.t = 0.16;
+      resolverGolpe();
+    }
+  } else if(R.estado === 'golpe'){
+    if(R.t <= 0){
+      R.estado = 'recuperando';
+      R.t = R.abierto > 0 ? ficha.recuperacion : ficha.recuperacion * 0.55;
+    }
+  } else if(R.estado === 'recuperando'){
+    if(R.t <= 0){
+      R.estado = 'quieto';
+      R.abierto = 0;
+      R.t = ficha.ritmo[0] + Math.random() * (ficha.ritmo[1] - ficha.ritmo[0]);
+    }
+  } else if(R.estado === 'aturdido'){
+    if(R.t <= 0){ R.estado = 'quieto'; R.t = 0.8; }
+  }
+}
+
+/* El momento de la verdad: se mira dónde estaba el jugador justo al
+   llegar el golpe y de ahí sale todo lo demás. */
+function resolverGolpe(){
+  const A = ATAQUES[rival.ataque];
+  const J = jugador;
+  const esquivando = J.esquivaT > 0 ? J.esquiva : 0;
+
+  let salida;
+  if(A.esquiva !== undefined){
+    if(esquivando === A.esquiva) salida = 'limpia';
+    else if(J.agachado) salida = 'rozada';
+    else salida = 'plena';
+  } else if(A.agachar){
+    if(J.agachado) salida = 'limpia';
+    else if(esquivando) salida = 'rozada';
+    else salida = 'plena';
+  } else if(A.guardia){
+    if(esquivando) salida = 'limpia';
+    else if(J.agachado) salida = 'plena';
+    else salida = 'bloqueada';
+  } else {                                   // la embestida
+    if(esquivando) salida = 'rozada';
+    else salida = 'plena';
+  }
+
+  if(salida === 'limpia'){
+    J.contra = 0.8;
+    rival.abierto = 1;
+    soplar('¡ESQUIVA!');
+    ganarEstrella();
+  } else if(salida === 'bloqueada'){
+    J.corazones = Math.max(0, J.corazones - 2);
+    herirJugador(Math.ceil(ficha.dano * 0.25), true);
+    soplar('BLOQUEADO');
+  } else if(salida === 'rozada'){
+    herirJugador(Math.ceil(ficha.dano * 0.5));
+  } else {
+    herirJugador(ficha.dano * (rival.ataque === 'embestida' ? 2 : 1));
+  }
+}
+
+function ganarEstrella(){
+  if(jugador.estrellas < 3){
+    jugador.estrellas++;
+    score += 200;
+  }
+  jugador.corazones = Math.min(jugador.corazonesMax, jugador.corazones + 1);
+  pintarHud();
+}
+
+/* ---------------- los golpes del jugador ---------------- */
+
+function pegar(mano, estrella){
+  const J = jugador;
+  if(J.golpeT > 0 || J.aturdido > 0 || J.caido > 0 || estado !== 'peleando') return;
+
+  if(estrella){
+    if(J.estrellas <= 0) return;
+    J.estrellas = 0;
+    J.golpe = { mano, tipo:'estrella' };
+    J.golpeT = 0.42;
+    impactar(14, 'estrella');
+    pintarHud();
+    return;
+  }
+
+  if(J.corazones <= 0) return;             // sin aire no se pega
+  const alto = !!(teclas.arrowup || teclas.w);
+  J.corazones--;
+  J.golpe = { mano, tipo: alto ? 'cara' : 'cuerpo' };
+  J.golpeT = 0.26;
+  impactar(alto ? 4 : 3, alto ? 'cara' : 'cuerpo');
+  pintarHud();
+}
+
+function impactar(base, tipo){
+  const R = rival, J = jugador;
+  if(R.estado === 'caido') return;
+
+  // la embestida se corta con un golpe a tiempo, y cuesta caro fallarlo
+  if(R.estado === 'aviso' && R.ataque === 'embestida'){
+    R.estado = 'aturdido';
+    R.t = 1.6;
+    dañar(base * 2 + 6);
+    soplar('¡LO PARASTE!');
+    return;
+  }
+
+  const ventana = J.contra > 0 || R.estado === 'recuperando' || R.estado === 'aturdido';
+
+  if(tipo === 'estrella'){
+    dañar(base + (ventana ? 6 : 0));
+    soplar('¡GANCHO DE ESTRELLA!');
+    R.estado = 'aturdido';
+    R.t = 1.1;
+    return;
+  }
+
+  if(ventana){
+    dañar(base + (tipo === 'cara' ? 3 : 2));
+    J.contra = Math.max(0, J.contra - 0.25);
+    return;
+  }
+
+  if(R.estado === 'aviso'){                 // le pillas el brazo cargado
+    dañar(1);
+    return;
+  }
+
+  // rival cubierto: casi todo rebota, y a veces te lo devuelve
+  if(Math.random() < ficha.guardia){
+    soplar('SE CUBRE');
+    J.corazones = Math.max(0, J.corazones - 1);
+    if(Math.random() < 0.3){
+      R.estado = 'aviso';
+      R.ataque = R.ataque || 'jab_izq';
+      R.t = ficha.aviso * 0.6;
+    }
+  } else dañar(1);
+}
+
+function dañar(n){
+  const R = rival;
+  R.vida -= n;
+  R.golpeado = 0.16;
+  dañoHecho += n;
+  score += n * 30;
+  polvo(320, 250, '#ffe9a8', 5 + n);
+  if(R.vida <= 0) tumbarRival();
+  pintarHud();
+}
+
+function herirJugador(n, bloqueado){
+  const J = jugador;
+  J.vida -= n;
+  dañoRecibido += n;
+  if(!bloqueado){
+    J.corazones = Math.max(0, J.corazones - 3);
+    J.aturdido = 0.45;
+    J.esquivaT = 0;
+    J.esquiva = 0;
+  }
+  polvo(320, 400, '#ff2e88', 8);
+  if(J.vida <= 0) tumbarJugador();
+  pintarHud();
+}
+
+/* ---------------- caídas y cuentas ---------------- */
+
+function tumbarRival(){
+  rival.caidas++;
+  rival.vida = 0;
+  rival.estado = 'caido';
+  score += 1500;
+  cuenta = 1; cuentaT = 0.8;
+  estado = 'cuenta_rival';
+  soplar('¡A LA LONA!');
+  pintarHud();
+}
+
+function tumbarJugador(){
+  jugador.caidas++;
+  jugador.vida = 0;
+  jugador.caido = 1;
+  jugador.levantar = 0;
+  cuenta = 1; cuentaT = 0.9;
+  estado = 'cuenta_jugador';
+  soplar('¡ABAJO!');
+  pintarHud();
+}
+
+function correrCuenta(dt){
+  cuentaT -= dt;
+  if(cuentaT > 0) return;
+  cuenta++;
+  cuentaT = estado === 'cuenta_rival' ? 0.8 : 0.9;
+
+  if(estado === 'cuenta_rival'){
+    if(rival.caidas >= 3 || cuenta > 9){
+      return ganarCombate(rival.caidas >= 3 ? 'K.O. TÉCNICO' : 'FUERA DE COMBATE');
+    }
+    if(cuenta >= 9){
+      rival.estado = 'aturdido';
+      rival.t = 1.4;
+      rival.vida = Math.max(6, Math.floor(rival.vidaMax * (0.55 - rival.caidas * 0.12)));
+      estado = 'peleando';
+      soplar('SE LEVANTA');
+      pintarHud();
+    }
+  } else {
+    if(cuenta > 9 || jugador.caidas >= 3) return perderCombate('Te contaron hasta diez');
+    if(cuenta >= 9){
+      jugador.caido = 0;
+      jugador.vida = Math.max(10, Math.floor(jugador.vidaMax * 0.45));
+      jugador.corazones = jugador.corazonesMax;
+      jugador.aturdido = 0.6;
+      rival.estado = 'quieto'; rival.t = 1.2;
+      estado = 'peleando';
+      pintarHud();
+    }
+  }
+}
+
+/* ---------------- fin de combate ---------------- */
+
+function ganarCombate(motivo){
+  score += ficha.puntos + Math.floor(tiempo) * 20;
+  if(cual >= RIVALES.length - 1) return terminar(true, 'Campeón: ' + motivo);
+  estado = 'entrecombate';
+  el.overTitle.textContent = motivo;
+  el.overText.innerHTML = ficha.nombre + ' no se levanta<br>' + score + ' puntos';
+  el.overBtn.textContent = 'SIGUIENTE RIVAL';
+  el.over.classList.add('show');
+  pintarHud();
+}
+
+function perderCombate(motivo){
+  terminar(false, motivo);
+}
+
+function decision(){
+  if(dañoHecho > dañoRecibido) return ganarCombate('GANAS POR PUNTOS');
+  perderCombate('Pierdes por puntos');
+}
+
+function terminar(gano, motivo){
+  if(estado === 'fin') return;
+  estado = 'fin';
+  window.Hall && Hall.registrar('19-fuera-de-combate', score, { unidad:'pts', etiqueta:'rival ' + (cual + 1) });
+  el.overTitle.textContent = gano ? 'CINTURÓN' : 'GAME OVER';
+  el.overText.innerHTML = motivo + '<br>' + score + ' puntos';
+  el.overBtn.textContent = 'OTRO COMBATE';
+  el.over.classList.add('show');
+}
+
+function pintarHud(){
+  el.score.textContent = score;
+  el.rival.textContent = (cual + 1) + ' de ' + RIVALES.length;
+  el.ronda.textContent = ronda;
+}
+
+function soplar(txt){ aviso = txt; avisoT = 1.2; }
+function polvo(x, y, color, n){
+  for(let i = 0; i < n; i++)
+    chispas.push({ x, y, vx:(Math.random()-.5)*260, vy:(Math.random()-.5)*260,
+                   t:0, dur:0.26 + Math.random()*0.24, color });
+}
+
+/* ---------------- turno de cada fotograma ---------------- */
+
+function actualizar(dt){
+  animT += dt;
+  if(avisoT > 0) avisoT -= dt;
+  chispas = chispas.filter(p => { p.t += dt; p.x += p.vx*dt; p.y += p.vy*dt; return p.t < p.dur; });
+
+  if(estado === 'presentacion'){
+    if(animT > 2.6){ estado = 'peleando'; animT = 0; }
+    return;
+  }
+  if(estado === 'cuenta_rival' || estado === 'cuenta_jugador') return correrCuenta(dt);
+  if(estado !== 'peleando') return;
+
+  const J = jugador;
+
+  tiempo -= dt;
+  if(tiempo <= 0){
+    tiempo = 0;
+    if(ronda >= RONDAS) return decision();
+    estado = 'entreronda';
+    el.overTitle.textContent = 'FIN DEL ASALTO ' + ronda;
+    el.overText.innerHTML = 'Le has hecho ' + dañoHecho + ' de daño<br>Has encajado ' + dañoRecibido;
+    el.overBtn.textContent = 'SALIR AL ASALTO ' + (ronda + 1);
+    el.over.classList.add('show');
+    return;
+  }
+
+  if(J.aturdido > 0) J.aturdido -= dt;
+  if(J.contra > 0) J.contra -= dt;
+  if(J.golpeT > 0){ J.golpeT -= dt; if(J.golpeT <= 0) J.golpe = null; }
+  if(J.esquivaT > 0){ J.esquivaT -= dt; if(J.esquivaT <= 0) J.esquiva = 0; }
+
+  J.agachado = !!(teclas.arrowdown || teclas.s) && J.aturdido <= 0;
+
+  // el aire vuelve solo, pero despacio
+  J.respiro += dt;
+  if(J.respiro > 1.4){
+    J.respiro = 0;
+    if(J.corazones < J.corazonesMax) J.corazones++;
+    pintarHud();
+  }
+
+  pensarRival(dt);
+}
+
+function esquivar(lado){
+  const J = jugador;
+  if(J.aturdido > 0 || J.caido > 0 || estado !== 'peleando') return;
+  J.esquiva = lado;
+  J.esquivaT = 0.45;
+}
+
+/* ---------------- dibujo ---------------- */
+
+function dibujarRing(){
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#12101f');
+  g.addColorStop(1, '#1b1830');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  // público: filas de cabezas que se mueven un poco
+  for(let f = 0; f < 4; f++){
+    const y = 40 + f * 26;
+    for(let i = 0; i < 26; i++){
+      const x = (i * 26 + f * 13) % (W + 26) - 13;
+      const salto = Math.sin(animT * 2 + i * 1.7 + f) * 2;
+      ctx.fillStyle = ['#2b2740','#3a3358','#241f3d','#332c52'][(i + f) % 4];
+      ctx.beginPath();
+      ctx.arc(x, y + salto, 9, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  ctx.fillStyle = 'rgba(7,6,13,.55)';
+  ctx.fillRect(0, 0, W, 150);
+
+  // lona en perspectiva
+  ctx.fillStyle = '#4a4570';
+  ctx.beginPath();
+  ctx.moveTo(96, LONA - 8);
+  ctx.lineTo(W - 96, LONA - 8);
+  ctx.lineTo(W, H);
+  ctx.lineTo(0, H);
+  ctx.fill();
+  ctx.fillStyle = '#5b5688';
+  ctx.fillRect(0, H - 26, W, 26);
+
+  // cuerdas
+  for(let i = 0; i < 3; i++){
+    const y = 150 + i * 34;
+    ctx.fillStyle = ['#ff2e88','#e9e5ff','#35f0d0'][i];
+    ctx.fillRect(0, y, W, 5);
+  }
+  ctx.fillStyle = '#2e2a4a';
+  ctx.fillRect(60, 140, 12, 120);
+  ctx.fillRect(W - 72, 140, 12, 120);
+}
+
+function poseRival(){
+  const R = rival;
+  const p = { cx: 320, base: LONA, alto: 190, inclina: 0, guante: 0, mano: 0, cabeza: 0 };
+  if(R.estado === 'quieto'){
+    p.cx += Math.sin(animT * 2.4) * 12;
+    p.cabeza = Math.sin(animT * 2.4 + 1) * 3;
+  } else if(R.estado === 'aviso'){
+    const carga = 1 - R.t / ficha.aviso;
+    p.inclina = -carga * 12;
+    p.mano = R.ataque === 'jab_der' ? 1 : R.ataque === 'jab_izq' ? -1 : 0;
+    p.guante = -carga * 0.4;
+    if(R.ataque === 'embestida') p.alto = 190 + carga * 24;
+  } else if(R.estado === 'golpe'){
+    p.inclina = 14;
+    p.mano = R.ataque === 'jab_der' ? 1 : R.ataque === 'jab_izq' ? -1 : 0;
+    p.guante = 1;
+  } else if(R.estado === 'recuperando'){
+    p.inclina = 8;
+    p.guante = 0.15;
+  } else if(R.estado === 'aturdido'){
+    p.cx += Math.sin(animT * 9) * 16;
+    p.inclina = Math.sin(animT * 7) * 8;
+  } else if(R.estado === 'caido'){
+    p.base = LONA + 40;
+    p.alto = 60;
+  }
+  return p;
+}
+
+function dibujarRival(){
+  const R = rival, p = poseRival();
+  const golpeado = R.golpeado > 0;
+  const piel = golpeado ? '#ffffff' : ficha.piel;
+
+  ctx.save();
+  ctx.translate(p.cx, p.base);
+
+  if(R.estado === 'caido'){
+    ctx.fillStyle = ficha.calzon;
+    ctx.fillRect(-70, -34, 90, 30);
+    ctx.fillStyle = piel;
+    ctx.fillRect(20, -40, 44, 36);
+    ctx.fillStyle = ficha.pelo;
+    ctx.fillRect(20, -46, 44, 10);
+    ctx.fillStyle = '#ff2e88';
+    ctx.fillRect(-96, -30, 26, 22);
+    ctx.restore();
+    return;
+  }
+
+  ctx.rotate(p.inclina * Math.PI / 180);
+
+  // piernas y calzón
+  ctx.fillStyle = piel;
+  ctx.fillRect(-34, -60, 24, 60);
+  ctx.fillRect(12, -60, 24, 60);
+  ctx.fillStyle = '#2b2740';
+  ctx.fillRect(-36, -12, 28, 12);
+  ctx.fillRect(10, -12, 28, 12);
+  ctx.fillStyle = ficha.calzon;
+  ctx.fillRect(-40, -104, 80, 48);
+  ctx.fillStyle = ficha.banda;
+  ctx.fillRect(-40, -104, 80, 8);
+
+  // torso
+  ctx.fillStyle = piel;
+  ctx.fillRect(-44, -164, 88, 62);
+  ctx.fillStyle = golpeado ? '#e9e5ff' : 'rgba(7,6,13,.16)';
+  ctx.fillRect(-30, -150, 60, 8);
+  ctx.fillRect(-6, -142, 12, 34);
+
+  // cabeza
+  ctx.fillStyle = piel;
+  ctx.fillRect(-26, -216 + p.cabeza, 52, 54);
+  ctx.fillStyle = ficha.pelo;
+  ctx.fillRect(-28, -224 + p.cabeza, 56, 18);
+  ctx.fillStyle = '#12101f';
+  const ojo = R.estado === 'aviso' ? 8 : 6;
+  ctx.fillRect(-17, -198 + p.cabeza, 12, ojo);
+  ctx.fillRect(5, -198 + p.cabeza, 12, ojo);
+  ctx.fillStyle = R.estado === 'aviso' ? '#ff2e88' : '#7d3524';
+  ctx.fillRect(-14, -178 + p.cabeza, 28, 7);
+
+  // guantes: el que carga se echa atrás y el que golpea viene hacia ti
+  for(const lado of [-1, 1]){
+    const suyoB = p.mano === lado || (p.mano === 0 && p.guante > 0);
+    const empujeB = suyoB ? p.guante : Math.max(0, p.guante) * 0.2;
+    ctx.strokeStyle = golpeado ? '#ffffff' : ficha.piel;
+    ctx.lineWidth = 15;
+    ctx.beginPath();
+    ctx.moveTo(lado * 36, -152);
+    ctx.lineTo(lado * (56 - empujeB * 26), -130 + empujeB * 56);
+    ctx.stroke();
+  }
+  for(const lado of [-1, 1]){
+    const suyo = p.mano === lado || (p.mano === 0 && p.guante > 0);
+    const empuje = suyo ? p.guante : Math.max(0, p.guante) * 0.2;
+    const gx = lado * (56 - empuje * 26);
+    const gy = -130 + empuje * 56 + (suyo ? 0 : Math.sin(animT * 2.4) * 3);
+    const r = 20 + Math.max(0, empuje) * 30;
+    ctx.fillStyle = golpeado ? '#ffffff' : '#c8202f';
+    ctx.beginPath();
+    ctx.arc(gx, gy, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(7,6,13,.28)';
+    ctx.beginPath();
+    ctx.arc(gx - r * 0.25, gy - r * 0.25, r * 0.45, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+
+  if(R.estado === 'aturdido'){
+    for(let i = 0; i < 4; i++){
+      const a = animT * 6 + i * Math.PI / 2;
+      ctx.fillStyle = '#ffb020';
+      ctx.fillRect(p.cx + Math.cos(a) * 40 - 5, p.base - 232 + Math.sin(a) * 12, 10, 10);
+    }
+  }
+}
+
+function dibujarJugador(){
+  const J = jugador;
+  const x = 320 + J.esquiva * 92;
+  const y = 408 + (J.agachado ? 46 : 0) + (J.aturdido > 0 ? Math.sin(animT * 40) * 4 : 0);
+
+  if(J.caido > 0){
+    ctx.fillStyle = '#2b3a8f';
+    ctx.fillRect(200, H - 40, 240, 30);
+    ctx.fillStyle = '#f0c9a0';
+    ctx.fillRect(430, H - 44, 40, 34);
+    return;
+  }
+
+  // guantes del jugador, uno a cada lado
+  for(const lado of [-1, 1]){
+    let gx = x + lado * 92, gy = y - 26, r = 26;
+    if(J.golpe && ((J.golpe.mano === 'izq') === (lado === -1))){
+      const fase = J.golpe.tipo === 'estrella' ? 1 - J.golpeT / 0.42 : 1 - J.golpeT / 0.26;
+      const alcance = Math.sin(fase * Math.PI);
+      gx = x + lado * (92 - alcance * 58);
+      gy = y - 26 - alcance * (J.golpe.tipo === 'cuerpo' ? 150 : 210);
+      r = 26 - alcance * 12;
+      ctx.fillStyle = J.golpe.tipo === 'estrella' ? '#ffb020' : '#35f0d0';
+    } else {
+      ctx.fillStyle = J.corazones > 0 ? '#35f0d0' : '#ff8fc0';
+    }
+    ctx.beginPath();
+    ctx.arc(gx, gy, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(7,6,13,.3)';
+    ctx.beginPath();
+    ctx.arc(gx - 7, gy - 7, r * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // nuca y hombros, de espaldas
+  ctx.fillStyle = '#1b2a6b';
+  ctx.fillRect(x - 58, y + 6, 116, 60);
+  ctx.fillStyle = '#f0c9a0';
+  ctx.beginPath();
+  ctx.arc(x, y - 4, 30, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#2b2740';
+  ctx.fillRect(x - 30, y - 26, 60, 16);
+  if(J.contra > 0){
+    ctx.strokeStyle = '#ffb020';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(x - 66, y - 40, 132, 110);
+  }
+}
+
+function barra(x, y, ancho, alto, parte, color){
+  ctx.fillStyle = 'rgba(7,6,13,.8)';
+  ctx.fillRect(x - 2, y - 2, ancho + 4, alto + 4);
+  ctx.fillStyle = '#2e2a4a';
+  ctx.fillRect(x, y, ancho, alto);
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, Math.max(0, ancho * parte), alto);
+}
+
+function dibujarHud(){
+  const J = jugador;
+  ctx.font = "9px 'Press Start 2P', monospace";
+  ctx.textAlign = 'left';
+
+  ctx.fillStyle = 'rgba(7,6,13,.7)';
+  ctx.fillRect(0, 0, W, 40);
+
+  ctx.fillStyle = '#e9e5ff';
+  ctx.fillText(ficha.nombre, 14, 16);
+  barra(14, 22, 240, 10, rival.vida / rival.vidaMax, '#ff5a5a');
+
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#ffb020';
+  ctx.fillText('ASALTO ' + ronda + '   ' + Math.ceil(tiempo), W - 14, 16);
+  ctx.fillStyle = '#8b83b4';
+  ctx.fillText('CAÍDAS ' + rival.caidas + ' - ' + J.caidas, W - 14, 32);
+  ctx.textAlign = 'left';
+
+  // vida, corazones y estrellas del jugador
+  ctx.fillStyle = 'rgba(7,6,13,.7)';
+  ctx.fillRect(0, H - 42, W, 42);
+  barra(14, H - 32, 240, 12, J.vida / J.vidaMax, '#35f0d0');
+
+  for(let i = 0; i < J.corazonesMax; i++){
+    const x = 274 + i * 15, y = H - 30;
+    ctx.fillStyle = i < J.corazones ? '#ff2e88' : '#2e2a4a';
+    ctx.fillRect(x, y + 2, 10, 6);
+    ctx.fillRect(x + 1, y, 3, 3);
+    ctx.fillRect(x + 6, y, 3, 3);
+    ctx.fillRect(x + 3, y + 8, 4, 3);
+  }
+  for(let i = 0; i < 3; i++){
+    const x = W - 96 + i * 28, y = H - 32;
+    ctx.fillStyle = i < J.estrellas ? '#ffb020' : '#2e2a4a';
+    ctx.fillRect(x, y + 6, 20, 5);
+    ctx.fillRect(x + 7, y, 5, 18);
+    ctx.fillRect(x + 3, y + 3, 14, 8);
+  }
+
+  if(J.corazones <= 0){
+    ctx.fillStyle = '#ff8fc0';
+    ctx.fillText('SIN AIRE', 274, H - 8);
+  }
+
+  if(estado === 'cuenta_rival' || estado === 'cuenta_jugador'){
+    ctx.textAlign = 'center';
+    ctx.font = "56px 'Press Start 2P', monospace";
+    ctx.fillStyle = '#ffb020';
+    ctx.fillText(Math.min(10, cuenta), W/2, 250);
+    ctx.font = "10px 'Press Start 2P', monospace";
+    ctx.fillStyle = '#e9e5ff';
+    if(estado === 'cuenta_jugador') ctx.fillText('APORREA LAS TECLAS PARA LEVANTARTE', W/2, 290);
+    ctx.textAlign = 'left';
+  }
+
+  if(avisoT > 0){
+    ctx.textAlign = 'center';
+    ctx.font = "13px 'Press Start 2P', monospace";
+    ctx.fillStyle = '#35f0d0';
+    ctx.fillText(aviso, W/2, 96);
+    ctx.textAlign = 'left';
+  }
+}
+
+function dibujarPresentacion(){
+  ctx.fillStyle = 'rgba(7,6,13,.86)';
+  ctx.fillRect(0, 0, W, H);
+  ctx.textAlign = 'center';
+  ctx.font = "10px 'Press Start 2P', monospace";
+  ctx.fillStyle = '#8b83b4';
+  ctx.fillText('RIVAL ' + (cual + 1) + ' DE ' + RIVALES.length, W/2, 150);
+  ctx.font = "20px 'Press Start 2P', monospace";
+  ctx.fillStyle = '#ffb020';
+  ctx.fillText(ficha.nombre, W/2, 200);
+  ctx.font = "11px 'Press Start 2P', monospace";
+  ctx.fillStyle = '#e9e5ff';
+  ctx.fillText(ficha.pais, W/2, 240);
+  ctx.font = "13px 'Chakra Petch', sans-serif";
+  ctx.fillStyle = '#8b83b4';
+  ctx.fillText(ficha.mote, W/2, 276);
+  ctx.font = "10px 'Press Start 2P', monospace";
+  ctx.fillStyle = Math.floor(animT * 3) % 2 ? '#35f0d0' : '#12101f';
+  ctx.fillText('¡A POR ÉL!', W/2, 340);
+  ctx.textAlign = 'left';
+}
+
+function dibujar(){
+  dibujarRing();
+  dibujarRival();
+  dibujarJugador();
+
+  for(const p of chispas){
+    ctx.fillStyle = p.color;
+    const r = 8 * (1 - p.t / p.dur);
+    ctx.fillRect(p.x - r/2, p.y - r/2, r + 1, r + 1);
+  }
+
+  dibujarHud();
+  if(estado === 'presentacion') dibujarPresentacion();
+}
+
+/* ---------------- teclado ---------------- */
+
+document.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  teclas[k] = true;
+  if(['arrowleft','arrowright','arrowup','arrowdown',' '].includes(k)) e.preventDefault();
+  if(e.repeat) return;
+
+  if(k === 'p'){
+    if(estado === 'peleando'){
+      estado = 'pausa';
+      el.overTitle.textContent = 'PAUSA';
+      el.overText.textContent = 'Pulsa P para seguir';
+      el.overBtn.textContent = 'REINICIAR';
+      el.over.classList.add('show');
+    } else if(estado === 'pausa'){
+      estado = 'peleando';
+      el.over.classList.remove('show');
+    }
+    return;
+  }
+
+  if(estado === 'cuenta_jugador'){
+    jugador.levantar++;
+    if(jugador.levantar > 11 && jugador.caidas < 3){
+      jugador.caido = 0;
+      jugador.vida = Math.max(10, Math.floor(jugador.vidaMax * 0.5));
+      jugador.corazones = jugador.corazonesMax;
+      jugador.aturdido = 0.5;
+      rival.estado = 'quieto'; rival.t = 1.2;
+      estado = 'peleando';
+      soplar('¡EN PIE!');
+      pintarHud();
+    }
+    return;
+  }
+
+  if(estado !== 'peleando') return;
+  if(k === 'arrowleft' || k === 'a') esquivar(-1);
+  else if(k === 'arrowright' || k === 'd') esquivar(1);
+  else if(k === 'z' || k === 'j') pegar('izq', false);
+  else if(k === 'x' || k === 'k') pegar('der', false);
+  else if(k === ' ') pegar('der', true);
+});
+document.addEventListener('keyup', e => { teclas[e.key.toLowerCase()] = false; });
+
+el.overBtn.addEventListener('click', () => {
+  if(estado === 'entreronda'){
+    nuevaRonda();
+    el.over.classList.remove('show');
+  } else if(estado === 'entrecombate'){
+    score += 0;
+    empezarCombate(cual + 1);
+    animT = 0;
+    el.over.classList.remove('show');
+  } else {
+    score = 0;
+    empezarCombate(0);
+    animT = 0;
+    el.over.classList.remove('show');
+  }
+});
+
+/* ---------------- arranque ---------------- */
+
+score = 0; animT = 0; avisoT = 0; cuenta = 0;
+empezarCombate(0);
+estado = 'menu';
+pintarHud();
+
+let ultimo = performance.now();
+function bucle(t){
+  const dt = Math.min(0.045, (t - ultimo) / 1000);
+  ultimo = t;
+  if(estado !== 'pausa' && estado !== 'menu' && estado !== 'fin' &&
+     estado !== 'entreronda' && estado !== 'entrecombate') actualizar(dt);
+  else animT += dt;
+  dibujar();
+  requestAnimationFrame(bucle);
+}
+requestAnimationFrame(bucle);
+</script>
+
+</body>
+</html>

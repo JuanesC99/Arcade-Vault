@@ -677,6 +677,10 @@ footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
   radial-gradient(circle at 74% 24%, rgba(233,229,255,.9) 0 7%, transparent 7%),
   repeating-linear-gradient(90deg, rgba(43,58,122,.55) 0 12px, transparent 12px 30px),
   linear-gradient(#2b1246,#120b26)}
+.a17{background-image:
+  radial-gradient(circle at 50% 44%, rgba(255,176,32,.85) 0 15%, transparent 15%),
+  linear-gradient(rgba(255,46,136,.55) 0 6px, transparent 6px 30px),
+  linear-gradient(#2b2740,#12101f)}
 
 @media(max-width:980px){
   .hero{grid-template-columns:1fr}
@@ -731,7 +735,7 @@ footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
       <a href="#biblioteca">Biblioteca</a>
       <a href="#hall">Hall of Fame</a>
     </nav>
-    <div class="wallet"><span class="coin"></span> 16 CABINAS</div>
+    <div class="wallet"><span class="coin"></span> 17 CABINAS</div>
   </div>
 </header>
 
@@ -753,6 +757,7 @@ footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
     <button class="chip" data-genre="mesa">Mesa</button>
     <button class="chip" data-genre="tanques">Tanques</button>
     <button class="chip" data-genre="plataformas">Plataformas</button>
+    <button class="chip" data-genre="boxeo">Boxeo</button>
   </div>
 </div>
 
@@ -797,7 +802,7 @@ footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
       </div>
       <div class="marquee reveal" style="animation-delay:.34s">
         <h3>AVISOS</h3>
-        <div class="ticker"><span>TODAS LAS CABINAS CORREN EN LOCAL · SIN INSTALAR NADA · DIECISÉIS JUEGOS EN HTML Y JAVASCRIPT PURO · PULSA P PARA PAUSAR EN CUALQUIERA · NO GOLPEES LA MÁQUINA</span></div>
+        <div class="ticker"><span>TODAS LAS CABINAS CORREN EN LOCAL · SIN INSTALAR NADA · DIECISIETE JUEGOS EN HTML Y JAVASCRIPT PURO · PULSA P PARA PAUSAR EN CUALQUIERA · NO GOLPEES LA MÁQUINA</span></div>
       </div>
     </aside>
   </div>
@@ -831,7 +836,7 @@ footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
 
 <footer>
   <a class="logo" href="#">ARCADE<span>VAULT</span></a>
-  <p>SALÓN LOCAL · 16 CABINAS EN 01-FIRSTCODE · 2026</p>
+  <p>SALÓN LOCAL · 17 CABINAS EN 01-FIRSTCODE · 2026</p>
 </footer>
 
 <script src="salon.js"></script>
@@ -949,6 +954,13 @@ const JUEGOS = [
     jugadores:'1 jugador', controles:'Flechas o WASD, espacio, Z y X',
     tags:['Plataformas','Trepar muros','Tres actos','Jefes'],
     d:'Un ninja que se agarra a las paredes y sube a saltos de muro en muro. Tres actos con farol que romper, artes ninja que gastan espíritu y un jefe esperando al final de cada uno.'
+  },
+  {
+    t:'Fuera de Combate', g:'boxeo', a:'a17',
+    url:'../19-fuera-de-combate/index.html', carpeta:'19-fuera-de-combate',
+    jugadores:'1 jugador', controles:'Flechas, Z, X y espacio',
+    tags:['Boxeo','Tres rivales','Contragolpe','Estrellas'],
+    d:'Boxeo visto desde tu esquina. Cada rival avisa antes de pegar y solo se abre justo después de fallar: ahí está todo el juego. Esquivar da estrellas, y la estrella tumba.'
   },
 ];
 

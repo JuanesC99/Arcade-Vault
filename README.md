@@ -1,10 +1,10 @@
 # Arcade Vault
 
-Un salón recreativo hecho a mano: dieciséis juegos en HTML, CSS y JavaScript puro, más una tienda que los reúne. Sin frameworks, sin dependencias y sin paso de compilación. Se abre y se juega.
+Un salón recreativo hecho a mano: diecisiete juegos en HTML, CSS y JavaScript puro, más una tienda que los reúne. Sin frameworks, sin dependencias y sin paso de compilación. Se abre y se juega.
 
 ## Jugar
 
-Abre `04-arcade-vault/index.html` en el navegador. Desde ahí se llega a las dieciséis cabinas.
+Abre `04-arcade-vault/index.html` en el navegador. Desde ahí se llega a las diecisiete cabinas.
 
 Cada juego también funciona por su cuenta: abre el `index.html` de su carpeta.
 
@@ -28,6 +28,7 @@ Cada juego también funciona por su cuenta: abre el `index.html` de su carpeta.
 | `16-cuatro-en-linea` | Cuatro en Línea | Mesa, contra la máquina | Clic o teclas 1 a 7 |
 | `17-tanques` | Brigada Acorazada | Tanques, defender la base | Flechas o WASD y espacio |
 | `18-filo-de-sombra` | Filo de Sombra | Plataformas de acción | Flechas, espacio, Z y X |
+| `19-fuera-de-combate` | Fuera de Combate | Boxeo | Flechas, Z, X y espacio |
 
 En casi todas, `P` pausa la partida. En todas, `F` o el botón del panel lateral ponen el juego a pantalla completa.
 
@@ -51,7 +52,7 @@ Cada cabina declara el mando que necesita antes de cargar el archivo:
 
 | Mando | Cabinas |
 |---|---|
-| Cruceta de cuatro | Cable Suelto, Cruce Peligroso, Brigada Acorazada, Filo de Sombra |
+| Cruceta de cuatro | Cable Suelto, Cruce Peligroso, Brigada Acorazada, Filo de Sombra, Fuera de Combate |
 | Izquierda y derecha | Lluvia de Marcianos |
 | Cruceta de Tetris | Bloques de Bolsillo |
 | Nave, con empuje | Chatarra Espacial |
@@ -86,7 +87,7 @@ Cada juego guarda la medida que le corresponde, y el marcador sabe cuándo lo bu
 
 | Medida | Juegos | Mejor es |
 |---|---|---|
-| Puntos | Arkanoid, Metro Rush, Tetris, Snake, Marcianos, 2048, Asteroides, Cruce, Tanques, Filo de Sombra | mayor |
+| Puntos | Arkanoid, Metro Rush, Tetris, Snake, Marcianos, 2048, Asteroides, Cruce, Tanques, Filo de Sombra, Fuera de Combate | mayor |
 | Puertas | Vuelo Rasante | mayor |
 | Rondas | Memoria Neón | mayor |
 | Peloteo más largo | Duelo de Palas | mayor |
@@ -103,5 +104,6 @@ Cada juego guarda la medida que le corresponde, y el marcador sabe cuándo lo bu
 - **Sonido sintetizado.** Los efectos de Arkanoid se generan con `03-arkanoid/scripts/make_sounds.py`, usando numpy y ffmpeg. Los mp3 van en el repositorio, así que no hace falta regenerarlos.
 - **Metro Rush** es el juego más grande, con unas tres mil líneas repartidas en siete archivos. Su piel de salón está aislada en `02-game/css/arcade.css`, que se carga después de su hoja propia.
 - **Cuatro en Línea** juega con minimax y poda alfa-beta, en tres profundidades.
+- **Fuera de Combate** no tiene más lógica que un ciclo de cuatro estados por rival: quieto, aviso, golpe y recuperación. El aviso es el gesto que delata lo que viene, y todo el combate consiste en leerlo. Con el rival quieto los golpes rebotan en su guardia, así que el daño solo entra en el hueco que deja al fallar.
 - **Filo de Sombra** monta cada acto encadenando trozos de dieciséis por quince casillas, así que un escenario se lee de un vistazo en el código. Los huecos y las repisas están medidos contra el salto: cuatro casillas de largo y dos de alto es lo que alcanza Ryu, y el muro de diez casillas solo se pasa trepando.
 - **Brigada Acorazada** reparte el campo en 26×26 ladrillos de 20 píxeles, así que cada bloque se desmorona a cuartos como en la máquina original. Las cinco fases se escriben en una rejilla de 13×13 letras, y el águila y su muro se colocan aparte para que ningún plano pueda dejarla emparedada.
