@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brigada Acorazada</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🛡️</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#07060d; --panel:#12101f; --edge:#2e2a4a;
+  --ink:#e9e5ff; --dim:#8b83b4; --neon:#ff2e88; --volt:#35f0d0; --amber:#ffb020;
+  --pixel:'Press Start 2P', monospace;
+  --body:'Chakra Petch', 'Trebuchet MS', sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--void);color:var(--ink);font-family:var(--body);min-height:100vh;
+     display:flex;align-items:center;justify-content:center;padding:20px;gap:26px;flex-wrap:wrap}
+body::before{content:'';position:fixed;inset:0;z-index:99;pointer-events:none;
+  background:repeating-linear-gradient(to bottom, rgba(0,0,0,.22) 0 1px, transparent 1px 3px)}
+h1{font-family:var(--pixel);font-size:13px;margin-bottom:18px;text-shadow:2px 2px 0 var(--volt)}
+.stage{position:relative;border:1px solid var(--edge);background:#05040c;
+       box-shadow:0 0 0 6px var(--panel), 0 20px 60px rgba(0,0,0,.7)}
+canvas{display:block}
+.side{width:196px}
+.box{border:1px solid var(--edge);background:var(--panel);padding:13px 14px;margin-bottom:12px}
+.box h2{font-family:var(--pixel);font-size:9px;color:var(--volt);margin-bottom:9px}
+.box .val{font-family:var(--pixel);font-size:15px;color:var(--amber)}
+.keys{font-size:12px;color:var(--dim);line-height:1.9}
+.keys b{color:var(--ink);font-weight:600}
+.grado{font-size:12px;color:var(--dim);line-height:1.7}
+.grado b{color:var(--volt);font-weight:600}
+.back{display:inline-block;margin-top:4px;font-family:var(--pixel);font-size:8px;
+      color:var(--void);background:var(--volt);padding:9px 11px;text-decoration:none}
+.back:hover{background:var(--neon);color:#12000a}
+.overlay{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;
+  justify-content:center;gap:16px;background:rgba(5,4,12,.88);text-align:center;padding:20px}
+.overlay.show{display:flex}
+.overlay p{font-family:var(--pixel);font-size:15px;line-height:1.9}
+.overlay small{color:var(--dim);font-size:13px;display:block;margin-top:6px}
+.overlay button{font-family:var(--pixel);font-size:10px;border:0;cursor:pointer;
+  background:var(--neon);color:#12000a;padding:13px 18px}
+.overlay button:hover{background:var(--volt);color:var(--void)}
+</style>
+</head>
+<body>
+
+<div>
+  <h1>BRIGADA ACORAZADA</h1>
+  <div class="stage">
+    <canvas id="cv" width="520" height="520"></canvas>
+    <div class="overlay show" id="over">
+      <p id="overTitle">BRIGADA ACORAZADA</p>
+      <small id="overText">Defiende el águila y limpia las veinte patrullas</small>
+      <button id="overBtn">EMPEZAR</button>
+    </div>
+  </div>
+</div>
+
+<div class="side">
+  <div class="box"><h2>PUNTOS</h2><div class="val" id="score">0</div></div>
+  <div class="box"><h2>FASE</h2><div class="val" id="fase">1</div></div>
+  <div class="box"><h2>VIDAS</h2><div class="val" id="vidas">3</div></div>
+  <div class="box"><h2>ENEMIGOS</h2><div class="val" id="quedan">20</div></div>
+  <div class="box ancho">
+    <h2>TU TANQUE</h2>
+    <div class="grado" id="grado">Blindaje de serie</div>
+  </div>
+  <div class="box ancho solo-texto">
+    <h2>CONTROLES</h2>
+    <div class="keys">
+      <b>Flechas</b> o <b>WASD</b> mover<br>
+      <b>Espacio</b> disparar<br>
+      <b>P</b> pausa · <b>F</b> pantalla
+    </div>
+  </div>
+  <div class="box ancho solo-texto">
+    <h2>REGLAS</h2>
+    <div class="keys">El ladrillo se rompe, el acero no hasta el tercer ascenso. El agua frena al tanque pero no a las balas, y bajo los árboles no te ven.</div>
+  </div>
+  <a class="back" href="../04-arcade-vault/index.html">&lt; VOLVER AL SALÓN</a>
+</div>
+
+<script src="../04-arcade-vault/salon.js"></script>
+<script src="../04-arcade-vault/pantalla.js"></script>
+<script>window.MANDO = { cruceta:'cuatro', acciones: [{ k:' ', txt:'FUEGO' }, { k:'p', txt:'PAUSA' }] };</script>
+<script src="../04-arcade-vault/movil.js"></script>
+<script>
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const W = cv.width, H = cv.height;
+
+/* El campo son 26x26 ladrillos pequeños de 20 px. Los tanques ocupan
+   cuatro de esos ladrillos, igual que en la máquina original: así el
+   muro se desmorona a cuartos y no de golpe. */
+const SUB = 20, N = 26, TQ = 40, BALA = 8;
+
+const VACIO = 0, LADRILLO = 1, ACERO = 2, AGUA = 3, ARBOL = 4, HIELO = 5;
+
+/* Las fases se dibujan en una rejilla de 13x13 bloques grandes; cada
+   letra se despliega luego en los cuatro ladrillos pequeños que la forman. */
+const LETRAS = { ' ':VACIO, '#':LADRILLO, '@':ACERO, '~':AGUA, '*':ARBOL, '%':HIELO };
+
+const FASES = [
+  [ "             ",
+    "  ## ### ##  ",
+    "  ## ### ##  ",
+    "  ##     ##  ",
+    "  ## @@@ ##  ",
+    "     @ @     ",
+    "#### @ @ ####",
+    "  ##     ##  ",
+    "  ## ### ##  ",
+    "  ## ### ##  ",
+    "     ###     ",
+    "  ##     ##  ",
+    "  ##     ##  " ],
+
+  [ " ### ~ ~ ### ",
+    " ### ~ ~ ### ",
+    "     ~   ~   ",
+    "@@#  ~   ~  #",
+    "  #      @@ #",
+    "  ### ## @@  ",
+    "     ###     ",
+    "  @@ ## ###  ",
+    "  @@      #  ",
+    "#  ~   ~  #@@",
+    "   ~   ~     ",
+    " ### ~ ~ ### ",
+    " ### ~ ~ ### " ],
+
+  [ "  ***   ***  ",
+    "  ***   ***  ",
+    "#### ### ####",
+    "     ###     ",
+    " @@#     #@@ ",
+    " @@# *** #@@ ",
+    "    # * #    ",
+    " ##  ***  ## ",
+    " ##       ## ",
+    "   #######   ",
+    "   #     #   ",
+    " ***     *** ",
+    " ***     *** " ],
+
+  [ " %%  ###  %% ",
+    " %%  ###  %% ",
+    "  @@     @@  ",
+    "%%   ###   %%",
+    "%%   ###   %%",
+    "  ###   ###  ",
+    "     @@@     ",
+    "  ###   ###  ",
+    "%%    #    %%",
+    "%%   ###   %%",
+    "  @@ ### @@  ",
+    " %%  ###  %% ",
+    " %%       %% " ],
+
+  [ " ##       ## ",
+    " ##  ~~~  ## ",
+    "  @@ ~~~ @@  ",
+    "*** ##### ***",
+    "***   #   ***",
+    " ### # # ### ",
+    "   # ### #   ",
+    " ### # # ### ",
+    "***   #   ***",
+    "*** ##### ***",
+    "  @@ ### @@  ",
+    " ##   #   ## ",
+    " ##  ###  ## " ],
+];
+
+/* El águila y su muro se colocan aparte, para que ninguna fase pueda
+   dejarla emparedada o al descubierto por accidente. */
+const BASE_X = 12, BASE_Y = 24;              // en ladrillos pequeños
+const SALIDAS = [[0, 0], [12, 0], [24, 0]];
+const SALIDA_JUGADOR = [8, 24];
+
+const TIPOS = {
+  basico:   { vel:  62, balaVel: 230, vida: 1, puntos: 100, color:'#c8c2e8' },
+  rapido:   { vel: 118, balaVel: 230, vida: 1, puntos: 200, color:'#7ce85c' },
+  /* ninguno lleva el ámbar del jugador: a media partida hay que
+     distinguirlos de un vistazo */
+  artillero:{ vel:  72, balaVel: 360, vida: 1, puntos: 300, color:'#b06bff', balas: 2 },
+  blindado: { vel:  60, balaVel: 230, vida: 4, puntos: 400, color:'#ff5a5a' },
+};
+
+/* Cuatro escalones: cada estrella recogida sube uno. */
+const GRADOS = [
+  { txt:'Blindaje de serie',       vel: 148, balaVel: 300, balas: 1 },
+  { txt:'Cañón recalibrado',       vel: 148, balaVel: 430, balas: 1 },
+  { txt:'Cargador doble',          vel: 158, balaVel: 430, balas: 2 },
+  { txt:'Perforante: parte acero', vel: 158, balaVel: 470, balas: 2, acero: true },
+];
+
+const PREMIOS = ['estrella', 'granada', 'casco', 'pala', 'tanque', 'reloj'];
+const PREMIO_TXT = {
+  estrella:'ASCENSO', granada:'GRANADA', casco:'ESCUDO',
+  pala:'MURO DE ACERO', tanque:'VIDA EXTRA', reloj:'ENEMIGOS QUIETOS'
+};
+
+let mapa, jugador, enemigos, balas, premios, estallidos;
+let teclas = {}, estado, score, fase, vidas, porSalir, enCola, salidaTurno;
+let congelados, palaT, avisoT, aviso, baseViva, animT;
+
+const el = {
+  score: document.getElementById('score'),
+  fase: document.getElementById('fase'),
+  vidas: document.getElementById('vidas'),
+  quedan: document.getElementById('quedan'),
+  grado: document.getElementById('grado'),
+  over: document.getElementById('over'),
+  overTitle: document.getElementById('overTitle'),
+  overText: document.getElementById('overText'),
+  overBtn: document.getElementById('overBtn'),
+};
+
+/* ---------------- el terreno ---------------- */
+
+function celda(sx, sy){
+  if(sx < 0 || sy < 0 || sx >= N || sy >= N) return ACERO;   // el borde también para
+  return mapa[sy * N + sx];
+}
+function ponerCelda(sx, sy, v){
+  if(sx < 0 || sy < 0 || sx >= N || sy >= N) return;
+  mapa[sy * N + sx] = v;
+}
+
+function cargarFase(n){
+  const plano = FASES[(n - 1) % FASES.length];
+  mapa = new Uint8Array(N * N);
+  for(let by = 0; by < 13; by++){
+    for(let bx = 0; bx < 13; bx++){
+      const v = LETRAS[plano[by][bx]];
+      if(!v) continue;
+      for(let dy = 0; dy < 2; dy++)
+        for(let dx = 0; dx < 2; dx++)
+          ponerCelda(bx * 2 + dx, by * 2 + dy, v);
+    }
+  }
+  despejarSalidas();
+  murallaBase(LADRILLO);
+}
+
+/* Ni las salidas ni el hueco del águila pueden nacer tapiados. */
+function despejarSalidas(){
+  const huecos = SALIDAS.concat([SALIDA_JUGADOR, [BASE_X, BASE_Y]]);
+  for(const [sx, sy] of huecos)
+    for(let dy = 0; dy < 2; dy++)
+      for(let dx = 0; dx < 2; dx++)
+        ponerCelda(sx + dx, sy + dy, VACIO);
+}
+
+function murallaBase(tipo){
+  for(let sx = BASE_X - 1; sx <= BASE_X + 2; sx++) ponerCelda(sx, BASE_Y - 1, tipo);
+  for(let sy = BASE_Y; sy < N; sy++){
+    ponerCelda(BASE_X - 1, sy, tipo);
+    ponerCelda(BASE_X + 2, sy, tipo);
+  }
+}
+
+/* ---------------- estorbos y choques ---------------- */
+
+function solido(v){ return v === LADRILLO || v === ACERO || v === AGUA; }
+
+function chocan(a, b){
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function rectTanque(t){ return { x:t.x, y:t.y, w:TQ, h:TQ }; }
+
+/* ¿Cabe el tanque ahí? Mira el terreno, el águila y el resto de tanques,
+   que tampoco se atraviesan entre ellos. */
+function libre(t, x, y){
+  if(x < 0 || y < 0 || x + TQ > W || y + TQ > H) return false;
+
+  const x0 = Math.floor(x / SUB), x1 = Math.floor((x + TQ - 1) / SUB);
+  const y0 = Math.floor(y / SUB), y1 = Math.floor((y + TQ - 1) / SUB);
+  for(let sy = y0; sy <= y1; sy++)
+    for(let sx = x0; sx <= x1; sx++)
+      if(solido(celda(sx, sy))) return false;
+
+  const yo = { x, y, w:TQ, h:TQ };
+  if(baseViva && chocan(yo, { x:BASE_X*SUB, y:BASE_Y*SUB, w:TQ, h:TQ })) return false;
+
+  for(const o of enemigos){
+    if(o === t || o.naciendo > 0) continue;
+    if(chocan(yo, rectTanque(o))) return false;
+  }
+  if(jugador !== t && jugador.vivo && jugador.naciendo <= 0 && chocan(yo, rectTanque(jugador))) return false;
+  return true;
+}
+
+/* Al girar, el tanque se alinea a medio ladrillo. Sin esto, un pasillo
+   del ancho justo se vuelve imposible de enfilar. */
+function encarar(t, dir){
+  if(t.dir === dir) return;
+  const paso = SUB / 2;
+  if(dir === 0 || dir === 2) t.x = Math.round(t.x / paso) * paso;
+  else                       t.y = Math.round(t.y / paso) * paso;
+  t.x = Math.max(0, Math.min(W - TQ, t.x));
+  t.y = Math.max(0, Math.min(H - TQ, t.y));
+  t.dir = dir;
+}
+
+function avanzar(t, dt, vel){
+  const d = vel * dt;
+  const nx = t.x + (t.dir === 1 ? d : t.dir === 3 ? -d : 0);
+  const ny = t.y + (t.dir === 2 ? d : t.dir === 0 ? -d : 0);
+  if(libre(t, nx, ny)){ t.x = nx; t.y = ny; return true; }
+  return false;
+}
+
+function sobreHielo(t){
+  return celda(Math.floor((t.x + TQ/2) / SUB), Math.floor((t.y + TQ/2) / SUB)) === HIELO;
+}
+
+/* ---------------- balas ---------------- */
+
+function disparar(t, vel, dueno){
+  const cx = t.x + TQ/2 - BALA/2, cy = t.y + TQ/2 - BALA/2;
+  const off = TQ/2;
+  balas.push({
+    x: cx + (t.dir === 1 ? off : t.dir === 3 ? -off : 0),
+    y: cy + (t.dir === 2 ? off : t.dir === 0 ? -off : 0),
+    dir: t.dir, vel, dueno, tanque: t,
+  });
+}
+
+function balasDe(t){ return balas.filter(b => b.tanque === t).length; }
+
+/* Rompe el muro justo delante de la bala, en una franja de dos ladrillos:
+   el mismo boquete que deja un tanque al pasar. */
+function derribar(b, perfora){
+  const vert = b.dir === 0 || b.dir === 2;
+  const ancho = SUB * 2 - 4;
+  const zona = vert
+    ? { x: b.x + BALA/2 - ancho/2, y: b.y, w: ancho, h: BALA }
+    : { x: b.x, y: b.y + BALA/2 - ancho/2, w: BALA, h: ancho };
+
+  const x0 = Math.floor(zona.x / SUB), x1 = Math.floor((zona.x + zona.w - 1) / SUB);
+  const y0 = Math.floor(zona.y / SUB), y1 = Math.floor((zona.y + zona.h - 1) / SUB);
+  for(let sy = y0; sy <= y1; sy++){
+    for(let sx = x0; sx <= x1; sx++){
+      const v = celda(sx, sy);
+      if(v === LADRILLO || (v === ACERO && perfora)) ponerCelda(sx, sy, VACIO);
+    }
+  }
+}
+
+function balaChoca(b){
+  const x0 = Math.floor(b.x / SUB), x1 = Math.floor((b.x + BALA - 1) / SUB);
+  const y0 = Math.floor(b.y / SUB), y1 = Math.floor((b.y + BALA - 1) / SUB);
+  for(let sy = y0; sy <= y1; sy++)
+    for(let sx = x0; sx <= x1; sx++){
+      const v = celda(sx, sy);
+      if(v === LADRILLO || v === ACERO) return true;   // el agua deja pasar el disparo
+    }
+  return false;
+}
+
+function moverBalas(dt){
+  const perfora = !!GRADOS[jugador.grado].acero;
+
+  balas = balas.filter(b => {
+    // se avanza a trozos pequeños para que ninguna bala salte un muro
+    const pasos = Math.max(1, Math.ceil(b.vel * dt / (SUB / 2)));
+    for(let i = 0; i < pasos; i++){
+      const d = b.vel * dt / pasos;
+      b.x += b.dir === 1 ? d : b.dir === 3 ? -d : 0;
+      b.y += b.dir === 2 ? d : b.dir === 0 ? -d : 0;
+
+      if(b.x < 0 || b.y < 0 || b.x + BALA > W || b.y + BALA > H){ chispa(b); return false; }
+
+      const r = { x:b.x, y:b.y, w:BALA, h:BALA };
+
+      if(baseViva && chocan(r, { x:BASE_X*SUB, y:BASE_Y*SUB, w:TQ, h:TQ })){
+        baseViva = false;
+        boom(BASE_X*SUB + TQ/2, BASE_Y*SUB + TQ/2, 46);
+        terminar('HAN VOLADO EL ÁGUILA');
+        return false;
+      }
+
+      if(balaChoca(b)){
+        derribar(b, b.dueno === 'jugador' && perfora);
+        chispa(b);
+        return false;
+      }
+
+      if(b.dueno === 'jugador'){
+        for(const e of enemigos){
+          if(e.naciendo > 0 || !chocan(r, rectTanque(e))) continue;
+          herir(e);
+          chispa(b);
+          return false;
+        }
+      } else if(jugador.vivo && jugador.escudo <= 0 && jugador.naciendo <= 0 && chocan(r, rectTanque(jugador))){
+        perderVida();
+        chispa(b);
+        return false;
+      }
+    }
+    return true;
+  });
+}
+
+/* ---------------- enemigos ---------------- */
+
+function plantillaFase(n){
+  // más blindados y artilleros según avanza el salón
+  const dureza = Math.min(4, n - 1);
+  const bolsa = [];
+  for(let i = 0; i < 10 - dureza; i++) bolsa.push('basico');
+  for(let i = 0; i < 4 + dureza;  i++) bolsa.push('rapido');
+  for(let i = 0; i < 3 + dureza;  i++) bolsa.push('artillero');
+  for(let i = 0; i < 3 + dureza;  i++) bolsa.push('blindado');
+  bolsa.sort(() => Math.random() - 0.5);
+
+  // tres de ellos llegan parpadeando y sueltan premio al caer
+  return bolsa.slice(0, 20).map((tipo, i) => ({ tipo, premio: i === 3 || i === 10 || i === 16 }));
+}
+
+function soltarEnemigo(){
+  if(!enCola.length || enemigos.length >= 4) return;
+  const [sx, sy] = SALIDAS[salidaTurno % SALIDAS.length];
+  const punto = { x: sx * SUB, y: sy * SUB, w: TQ, h: TQ };
+  if(enemigos.some(e => chocan(punto, rectTanque(e)))) return;
+  salidaTurno++;
+
+  const ficha = enCola.shift();
+  enemigos.push({
+    x: punto.x, y: punto.y, dir: 2, tipo: ficha.tipo,
+    vida: TIPOS[ficha.tipo].vida, premio: ficha.premio, naciendo: 1,
+    pensar: 0, disparo: 0, golpeado: 0,
+  });
+}
+
+function herir(e){
+  e.vida--;
+  if(e.vida > 0){ e.golpeado = 0.12; return; }
+  score += TIPOS[e.tipo].puntos;
+  boom(e.x + TQ/2, e.y + TQ/2, 40);
+  if(e.premio) soltarPremio();
+  enemigos.splice(enemigos.indexOf(e), 1);
+  pintarHud();
+  if(!enCola.length && !enemigos.length) faseSuperada();
+}
+
+/* Elige rumbo: casi siempre hacia el águila, a veces a por el jugador,
+   y de vez en cuando a lo loco para que no vayan todos en fila. */
+function rumbo(e){
+  const r = Math.random();
+  let objx, objy;
+  if(r < 0.45){ objx = BASE_X * SUB; objy = BASE_Y * SUB; }
+  else if(r < 0.7 && jugador.vivo){ objx = jugador.x; objy = jugador.y; }
+  else return Math.floor(Math.random() * 4);
+
+  const dx = objx - e.x, dy = objy - e.y;
+  if(Math.abs(dx) > Math.abs(dy)) return dx > 0 ? 1 : 3;
+  return dy > 0 ? 2 : 0;
+}
+
+function alineado(e, x, y){
+  if(e.dir === 0) return Math.abs(x - e.x) < TQ && y < e.y;
+  if(e.dir === 2) return Math.abs(x - e.x) < TQ && y > e.y;
+  if(e.dir === 3) return Math.abs(y - e.y) < TQ && x < e.x;
+  return Math.abs(y - e.y) < TQ && x > e.x;
+}
+
+function moverEnemigos(dt){
+  for(const e of enemigos){
+    if(e.golpeado > 0) e.golpeado -= dt;
+    if(e.naciendo > 0){ e.naciendo -= dt; continue; }
+    if(congelados > 0) continue;
+
+    const T = TIPOS[e.tipo];
+    e.pensar -= dt;
+    if(e.pensar <= 0){
+      encarar(e, rumbo(e));
+      e.pensar = 0.4 + Math.random() * 1.1;
+    }
+    if(!avanzar(e, dt, T.vel)){
+      encarar(e, Math.floor(Math.random() * 4));
+      e.pensar = 0.3 + Math.random() * 0.6;
+    }
+
+    e.disparo -= dt;
+    if(e.disparo <= 0 && balasDe(e) < (T.balas || 1)){
+      const aBase = alineado(e, BASE_X * SUB, BASE_Y * SUB);
+      const aTi = jugador.vivo && alineado(e, jugador.x, jugador.y);
+      if(aBase || aTi || Math.random() < 0.35){
+        disparar(e, T.balaVel, 'enemigo');
+        e.disparo = 0.55 + Math.random() * 0.9;
+      } else e.disparo = 0.2;
+    }
+  }
+}
+
+/* ---------------- premios ---------------- */
+
+function soltarPremio(){
+  const clase = PREMIOS[Math.floor(Math.random() * PREMIOS.length)];
+  // cae en cualquier hueco del campo, lejos del águila
+  for(let i = 0; i < 80; i++){
+    const x = Math.floor(Math.random() * (N - 2)) * SUB;
+    const y = Math.floor(Math.random() * (N - 4)) * SUB;
+    if(Math.abs(x - BASE_X * SUB) < 90 && y > (BASE_Y - 4) * SUB) continue;
+    premios.length = 0;                      // solo uno en el campo a la vez
+    premios.push({ x, y, clase, vida: 18 });
+    return;
+  }
+}
+
+function recoger(p){
+  score += 500;
+  if(p.clase === 'estrella')      jugador.grado = Math.min(GRADOS.length - 1, jugador.grado + 1);
+  else if(p.clase === 'granada')  for(const e of enemigos.slice()){ e.vida = 1; herir(e); }
+  else if(p.clase === 'casco')    jugador.escudo = 10;
+  else if(p.clase === 'pala')   { murallaBase(ACERO); palaT = 15; }
+  else if(p.clase === 'tanque')   vidas++;
+  else if(p.clase === 'reloj')    congelados = 8;
+  aviso = PREMIO_TXT[p.clase];
+  avisoT = 1.8;
+  pintarHud();
+}
+
+/* ---------------- explosiones ---------------- */
+
+function boom(x, y, r){ estallidos.push({ x, y, r, t: 0, dur: 0.42 }); }
+function chispa(b){ estallidos.push({ x: b.x + BALA/2, y: b.y + BALA/2, r: 13, t: 0, dur: 0.16 }); }
+
+/* ---------------- partida ---------------- */
+
+function nacerJugador(){
+  jugador.x = SALIDA_JUGADOR[0] * SUB;
+  jugador.y = SALIDA_JUGADOR[1] * SUB;
+  jugador.dir = 0;
+  jugador.vivo = true;
+  jugador.naciendo = 0.9;
+  jugador.deslizo = 0;
+  jugador.escudo = Math.max(jugador.escudo, 2.5);
+}
+
+function perderVida(){
+  boom(jugador.x + TQ/2, jugador.y + TQ/2, 44);
+  jugador.vivo = false;
+  jugador.grado = 0;                          // el tanque nuevo sale de serie
+  vidas--;
+  pintarHud();
+  if(vidas < 0) return terminar('SIN TANQUES DE REPUESTO');
+  setTimeout(function(){ if(estado === 'jugando') nacerJugador(); }, 900);
+}
+
+function empezarFase(n){
+  fase = n;
+  cargarFase(n);
+  enemigos = []; balas = []; premios = []; estallidos = [];
+  enCola = plantillaFase(n);
+  salidaTurno = 0;
+  congelados = 0; palaT = 0; avisoT = 0;
+  baseViva = true;
+  porSalir = 0.6;
+  nacerJugador();
+  pintarHud();
+}
+
+function faseSuperada(){
+  estado = 'entrefase';
+  score += 300 + fase * 100;
+  el.overTitle.textContent = 'FASE ' + fase + ' LIMPIA';
+  el.overText.textContent = score + ' puntos · el águila sigue en pie';
+  el.overBtn.textContent = 'SIGUIENTE FASE';
+  el.over.classList.add('show');
+  pintarHud();
+}
+
+function arrancar(){
+  score = 0; vidas = 3;
+  jugador.grado = 0;
+  jugador.escudo = 0;
+  estado = 'jugando';
+  empezarFase(1);
+  el.over.classList.remove('show');
+}
+
+function terminar(motivo){
+  if(estado === 'fin') return;
+  estado = 'fin';
+  window.Hall && Hall.registrar('17-tanques', score, { unidad:'pts', etiqueta:'fase ' + fase });
+  el.overTitle.textContent = 'GAME OVER';
+  el.overText.textContent = motivo + ' · ' + score + ' puntos · fase ' + fase;
+  el.overBtn.textContent = 'OTRA PARTIDA';
+  el.over.classList.add('show');
+}
+
+function pintarHud(){
+  el.score.textContent = score;
+  el.fase.textContent = fase;
+  el.vidas.textContent = Math.max(0, vidas);
+  el.quedan.textContent = enCola.length + enemigos.length;
+  el.grado.innerHTML = '<b>' + GRADOS[jugador.grado].txt + '</b>';
+}
+
+/* ---------------- el turno de cada fotograma ---------------- */
+
+function actualizar(dt){
+  animT += dt;
+  if(congelados > 0) congelados -= dt;
+  if(avisoT > 0) avisoT -= dt;
+  if(palaT > 0){
+    palaT -= dt;
+    if(palaT <= 0) murallaBase(LADRILLO);
+  }
+
+  porSalir -= dt;
+  if(porSalir <= 0){ soltarEnemigo(); porSalir = 2.2; }
+
+  const G = GRADOS[jugador.grado];
+
+  if(jugador.vivo){
+    if(jugador.naciendo > 0) jugador.naciendo -= dt;
+    if(jugador.escudo > 0) jugador.escudo -= dt;
+
+    let dir = null;
+    if(teclas.arrowup         || teclas.w) dir = 0;
+    else if(teclas.arrowright || teclas.d) dir = 1;
+    else if(teclas.arrowdown  || teclas.s) dir = 2;
+    else if(teclas.arrowleft  || teclas.a) dir = 3;
+
+    if(dir !== null){
+      encarar(jugador, dir);
+      avanzar(jugador, dt, G.vel);
+      jugador.deslizo = sobreHielo(jugador) ? 0.32 : 0;
+    } else if(jugador.deslizo > 0){
+      jugador.deslizo -= dt;                 // sobre el hielo no se frena en seco
+      avanzar(jugador, dt, G.vel * 0.8);
+    }
+
+    jugador.disparo -= dt;
+    if(teclas[' '] && jugador.disparo <= 0 && balasDe(jugador) < G.balas){
+      disparar(jugador, G.balaVel, 'jugador');
+      jugador.disparo = 0.22;
+    }
+  }
+
+  moverEnemigos(dt);
+  moverBalas(dt);
+
+  premios = premios.filter(p => {
+    p.vida -= dt;
+    if(p.vida <= 0) return false;
+    if(jugador.vivo && chocan({ x:p.x, y:p.y, w:TQ, h:TQ }, rectTanque(jugador))){
+      recoger(p);
+      return false;
+    }
+    return true;
+  });
+
+  estallidos = estallidos.filter(x => (x.t += dt) < x.dur);
+}
+
+/* ---------------- dibujo ---------------- */
+
+function dibujarTerreno(capa){
+  for(let sy = 0; sy < N; sy++){
+    for(let sx = 0; sx < N; sx++){
+      const v = celda(sx, sy);
+      if(v === VACIO) continue;
+      if((capa === 'alto') !== (v === ARBOL)) continue;
+      const x = sx * SUB, y = sy * SUB;
+
+      if(v === LADRILLO){
+        ctx.fillStyle = '#7d3524';
+        ctx.fillRect(x, y, SUB, SUB);
+        ctx.fillStyle = '#b8563a';
+        for(let f = 0; f < 4; f++){
+          const desfase = (f % 2) * 5;
+          ctx.fillRect(x + desfase, y + f * 5, 9, 4);
+          ctx.fillRect(x + desfase + 10, y + f * 5, 9, 4);
+        }
+      } else if(v === ACERO){
+        ctx.fillStyle = '#7f849c';
+        ctx.fillRect(x, y, SUB, SUB);
+        ctx.fillStyle = '#c8ccdd';
+        ctx.fillRect(x + 2, y + 2, SUB - 4, SUB - 4);
+        ctx.fillStyle = '#9aa0b8';
+        ctx.fillRect(x + 6, y + 6, SUB - 12, SUB - 12);
+      } else if(v === AGUA){
+        const onda = Math.floor(animT * 2.4 + sx * 0.4 + sy * 0.2) % 2;
+        ctx.fillStyle = '#123a68';
+        ctx.fillRect(x, y, SUB, SUB);
+        ctx.fillStyle = '#2f7fc4';
+        ctx.fillRect(x + (onda ? 3 : 8), y + 5, 9, 3);
+        ctx.fillRect(x + (onda ? 9 : 3), y + 12, 8, 3);
+      } else if(v === HIELO){
+        ctx.fillStyle = '#9fc3e8';
+        ctx.fillRect(x, y, SUB, SUB);
+        ctx.fillStyle = '#dceaff';
+        ctx.fillRect(x + 2, y + 2, 7, 2);
+        ctx.fillRect(x + 10, y + 11, 7, 2);
+      } else if(v === ARBOL){
+        ctx.fillStyle = '#14512a';
+        ctx.fillRect(x, y, SUB, SUB);
+        ctx.fillStyle = '#1f7a3c';
+        ctx.fillRect(x + 2, y + 3, 7, 7);
+        ctx.fillRect(x + 11, y + 9, 7, 8);
+      }
+    }
+  }
+}
+
+/* Todos los tanques se dibujan mirando hacia arriba y el lienzo se gira:
+   así hay un solo dibujo y no cuatro. */
+function dibujarTanque(t, color, oruga){
+  ctx.save();
+  ctx.translate(t.x + TQ/2, t.y + TQ/2);
+  ctx.rotate(t.dir * Math.PI / 2);
+  ctx.translate(-TQ/2, -TQ/2);
+
+  ctx.fillStyle = '#2b2740';
+  ctx.fillRect(1, 4, 10, 32);
+  ctx.fillRect(29, 4, 10, 32);
+  ctx.fillStyle = color;
+  for(let i = 0; i < 6; i++){
+    if((i + oruga) % 2) continue;
+    ctx.fillRect(2, 5 + i * 5.4, 8, 3.4);
+    ctx.fillRect(30, 5 + i * 5.4, 8, 3.4);
+  }
+  ctx.fillRect(11, 9, 18, 24);
+  ctx.fillStyle = '#1b1830';
+  ctx.fillRect(13, 13, 14, 15);
+  ctx.fillStyle = color;
+  ctx.fillRect(15, 15, 10, 11);
+  ctx.fillRect(18, 0, 4, 16);
+  ctx.restore();
+}
+
+function dibujarEscudo(t){
+  const r = TQ/2 + 4;
+  ctx.save();
+  ctx.translate(t.x + TQ/2, t.y + TQ/2);
+  ctx.rotate(animT * 5);
+  ctx.strokeStyle = Math.floor(animT * 14) % 2 ? '#35f0d0' : '#e9e5ff';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for(let i = 0; i < 6; i++){
+    const a = i * Math.PI / 3;
+    ctx[i ? 'lineTo' : 'moveTo'](Math.cos(a) * r, Math.sin(a) * r);
+  }
+  ctx.closePath();
+  ctx.stroke();
+  ctx.restore();
+}
+
+function dibujarNacimiento(t){
+  const r = 6 + (1 - Math.max(0, Math.min(1, t.naciendo))) * 14;
+  ctx.save();
+  ctx.translate(t.x + TQ/2, t.y + TQ/2);
+  ctx.rotate(animT * 9);
+  ctx.strokeStyle = '#e9e5ff';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for(let i = 0; i < 4; i++){
+    const a = i * Math.PI / 2;
+    ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+    ctx.lineTo(Math.cos(a + Math.PI) * r, Math.sin(a + Math.PI) * r);
+  }
+  ctx.stroke();
+  ctx.restore();
+}
+
+function dibujarBase(){
+  const x = BASE_X * SUB, y = BASE_Y * SUB;
+  if(baseViva){
+    ctx.fillStyle = '#ffb020';
+    ctx.fillRect(x + 6, y + 8, 28, 22);
+    ctx.fillRect(x + 16, y + 2, 8, 8);
+    ctx.fillStyle = '#12101f';
+    ctx.fillRect(x + 12, y + 14, 6, 10);
+    ctx.fillRect(x + 22, y + 14, 6, 10);
+    ctx.fillStyle = '#ff2e88';
+    ctx.fillRect(x + 4, y + 30, 32, 6);
+  } else {
+    ctx.fillStyle = '#4a4560';
+    ctx.fillRect(x + 6, y + 16, 28, 18);
+    ctx.fillStyle = '#2b2740';
+    ctx.fillRect(x + 12, y + 20, 7, 9);
+    ctx.fillRect(x + 22, y + 24, 8, 6);
+  }
+}
+
+const DIBUJO_PREMIO = {
+  estrella: c => { c.fillStyle = '#ffb020'; c.fillRect(6,14,28,5); c.fillRect(16,5,7,28); c.fillRect(9,8,22,5); },
+  granada:  c => { c.fillStyle = '#ff5a5a'; c.fillRect(11,12,18,20); c.fillRect(17,5,6,8); },
+  casco:    c => { c.fillStyle = '#35f0d0'; c.fillRect(8,10,24,16); c.fillRect(12,26,16,6); },
+  pala:     c => { c.fillStyle = '#c8ccdd'; c.fillRect(17,5,6,18); c.fillRect(10,22,20,12); },
+  tanque:   c => { c.fillStyle = '#7ce85c'; c.fillRect(8,14,24,16); c.fillRect(17,6,6,10); },
+  reloj:    c => { c.fillStyle = '#e9e5ff'; c.fillRect(9,9,22,22); c.fillStyle = '#12101f'; c.fillRect(19,13,3,8); c.fillRect(19,19,8,3); },
+};
+
+function dibujarPremios(){
+  for(const p of premios){
+    if(p.vida < 5 && Math.floor(p.vida * 8) % 2) continue;   // parpadea antes de irse
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.fillStyle = 'rgba(7,6,13,.7)';
+    ctx.fillRect(2, 2, TQ - 4, TQ - 4);
+    DIBUJO_PREMIO[p.clase](ctx);
+    ctx.restore();
+  }
+}
+
+function dibujar(){
+  ctx.fillStyle = '#0a0814';
+  ctx.fillRect(0, 0, W, H);
+
+  dibujarTerreno('bajo');
+  dibujarBase();
+
+  const oruga = Math.floor(animT * 12) % 2;
+
+  for(const e of enemigos){
+    if(e.naciendo > 0){ dibujarNacimiento(e); continue; }
+    let color = TIPOS[e.tipo].color;
+    if(e.premio && Math.floor(animT * 6) % 2) color = '#ff2e88';
+    if(congelados > 0) color = '#8fd8ff';
+    if(e.golpeado > 0) color = '#ffffff';
+    dibujarTanque(e, color, oruga);
+  }
+
+  if(jugador.vivo){
+    if(jugador.naciendo > 0) dibujarNacimiento(jugador);
+    else {
+      dibujarTanque(jugador, '#ffb020', oruga);
+      if(jugador.escudo > 0) dibujarEscudo(jugador);
+    }
+  }
+
+  ctx.fillStyle = '#ffe9a8';
+  for(const b of balas) ctx.fillRect(b.x, b.y, BALA, BALA);
+
+  dibujarPremios();
+  dibujarTerreno('alto');            // los árboles tapan lo que pasa debajo
+
+  for(const x of estallidos){
+    const p = x.t / x.dur;
+    ctx.fillStyle = p < 0.5 ? '#ffe9a8' : '#ff8a3d';
+    const r = x.r * (p < 0.5 ? p * 2 : 2 - p * 2);
+    ctx.fillRect(x.x - r/2, x.y - r/2, r, r);
+  }
+
+  if(congelados > 0){
+    ctx.fillStyle = 'rgba(53,240,208,.06)';
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  if(avisoT > 0){
+    ctx.fillStyle = 'rgba(7,6,13,.82)';
+    ctx.fillRect(0, 12, W, 30);
+    ctx.fillStyle = '#35f0d0';
+    ctx.font = "12px 'Press Start 2P', monospace";
+    ctx.textAlign = 'center';
+    ctx.fillText(aviso, W/2, 33);
+    ctx.textAlign = 'left';
+  }
+}
+
+/* ---------------- teclado ---------------- */
+
+document.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  teclas[k] = true;
+  if(['arrowleft','arrowright','arrowup','arrowdown',' '].includes(k)) e.preventDefault();
+  if(k === 'p'){
+    if(estado === 'jugando'){
+      estado = 'pausa';
+      el.overTitle.textContent = 'PAUSA';
+      el.overText.textContent = 'Pulsa P para seguir';
+      el.overBtn.textContent = 'REINICIAR';
+      el.over.classList.add('show');
+    } else if(estado === 'pausa'){
+      estado = 'jugando';
+      el.over.classList.remove('show');
+    }
+  }
+});
+document.addEventListener('keyup', e => { teclas[e.key.toLowerCase()] = false; });
+
+el.overBtn.addEventListener('click', () => {
+  if(estado === 'entrefase'){
+    estado = 'jugando';
+    empezarFase(fase + 1);          // el ascenso del tanque se conserva
+    el.over.classList.remove('show');
+  } else arrancar();
+});
+
+/* ---------------- arranque ---------------- */
+
+score = 0; vidas = 3; animT = 0;
+jugador = { x:0, y:0, dir:0, vivo:true, naciendo:0, escudo:0, grado:0, disparo:0, deslizo:0 };
+empezarFase(1);
+estado = 'menu';
+pintarHud();
+
+let ultimo = performance.now();
+function bucle(t){
+  const dt = Math.min(0.05, (t - ultimo) / 1000);
+  ultimo = t;
+  if(estado === 'jugando') actualizar(dt);
+  dibujar();
+  requestAnimationFrame(bucle);
+}
+requestAnimationFrame(bucle);
+</script>
+
+</body>
+</html>

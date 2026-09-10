@@ -667,6 +667,11 @@ footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
   radial-gradient(circle at 50% 62%, #ffb020 0 9%, transparent 9%),
   radial-gradient(circle at 74% 40%, #ff2e88 0 9%, transparent 9%),
   linear-gradient(#1b1830,#0a0814)}
+.a15{background-image:
+  repeating-linear-gradient(90deg, rgba(184,86,58,.85) 0 10px, rgba(125,53,36,.85) 10px 20px),
+  repeating-linear-gradient(to bottom, rgba(0,0,0,.35) 0 10px, transparent 10px 20px),
+  radial-gradient(circle at 50% 68%, #ffb020 0 13%, transparent 13%),
+  linear-gradient(#141224,#0a0814)}
 
 @media(max-width:980px){
   .hero{grid-template-columns:1fr}
@@ -721,7 +726,7 @@ footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
       <a href="#biblioteca">Biblioteca</a>
       <a href="#hall">Hall of Fame</a>
     </nav>
-    <div class="wallet"><span class="coin"></span> 14 CABINAS</div>
+    <div class="wallet"><span class="coin"></span> 15 CABINAS</div>
   </div>
 </header>
 
@@ -741,6 +746,7 @@ footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
     <button class="chip" data-genre="espacio">Espacio</button>
     <button class="chip" data-genre="travesía">Travesía</button>
     <button class="chip" data-genre="mesa">Mesa</button>
+    <button class="chip" data-genre="tanques">Tanques</button>
   </div>
 </div>
 
@@ -785,7 +791,7 @@ footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
       </div>
       <div class="marquee reveal" style="animation-delay:.34s">
         <h3>AVISOS</h3>
-        <div class="ticker"><span>TODAS LAS CABINAS CORREN EN LOCAL · SIN INSTALAR NADA · CATORCE JUEGOS EN HTML Y JAVASCRIPT PURO · PULSA P PARA PAUSAR EN CUALQUIERA · NO GOLPEES LA MÁQUINA</span></div>
+        <div class="ticker"><span>TODAS LAS CABINAS CORREN EN LOCAL · SIN INSTALAR NADA · QUINCE JUEGOS EN HTML Y JAVASCRIPT PURO · PULSA P PARA PAUSAR EN CUALQUIERA · NO GOLPEES LA MÁQUINA</span></div>
       </div>
     </aside>
   </div>
@@ -819,7 +825,7 @@ footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
 
 <footer>
   <a class="logo" href="#">ARCADE<span>VAULT</span></a>
-  <p>SALÓN LOCAL · 14 CABINAS EN 01-FIRSTCODE · 2026</p>
+  <p>SALÓN LOCAL · 15 CABINAS EN 01-FIRSTCODE · 2026</p>
 </footer>
 
 <script src="salon.js"></script>
@@ -923,6 +929,13 @@ const JUEGOS = [
     jugadores:'1 o 2 jugadores', controles:'Clic o teclas 1 a 7',
     tags:['Mesa','Contra la máquina','Tres niveles','Dos jugadores'],
     d:'Contra una máquina que piensa con minimax y poda alfa-beta, en tres profundidades. En el nivel duro mira seis jugadas por delante y tapa antes de que veas la línea.'
+  },
+  {
+    t:'Brigada Acorazada', g:'tanques', a:'a15',
+    url:'../17-tanques/index.html', carpeta:'17-tanques',
+    jugadores:'1 jugador', controles:'Flechas o WASD y espacio',
+    tags:['Tanques','Cinco fases','Seis premios','Defender la base'],
+    d:'Veinte tanques por fase y un águila que no puede caer. El muro de ladrillo se deshace a tiros, el de acero solo con el tercer ascenso, y bajo los árboles nadie te ve venir.'
   },
 ];
 
