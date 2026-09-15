@@ -1,0 +1,17 @@
+/* Lo mínimo común a todo: el salón y las cabinas traen su propio estilo. */
+
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: #07060d;
+  color: #e9e5ff;
+  font-family: var(--body-fuente), 'Chakra Petch', 'Trebuchet MS', sans-serif;
+}
+
+img, canvas { max-width: 100%; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}

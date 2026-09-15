@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Acceso · Arcade Vault</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🕹️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Chakra+Petch:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#07060d;
+  --panel:#12101f;
+  --panel2:#1b1830;
+  --edge:#2e2a4a;
+  --ink:#e9e5ff;
+  --dim:#8b83b4;
+  --neon:#ff2e88;
+  --volt:#35f0d0;
+  --amber:#ffb020;
+  --pixel:'Press Start 2P', monospace;
+  --body:'Chakra Petch', 'Trebuchet MS', sans-serif;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+
+body{
+  background:var(--void);
+  color:var(--ink);
+  font-family:var(--body);
+  font-size:15px;
+  line-height:1.55;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:32px 18px;
+  gap:22px;
+}
+
+/* atmósfera CRT, la misma del salón */
+body::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  z-index:900;
+  pointer-events:none;
+  background:repeating-linear-gradient(to bottom, rgba(0,0,0,.24) 0 1px, rgba(0,0,0,0) 1px 3px);
+  mix-blend-mode:multiply;
+  opacity:.55;
+}
+body::after{
+  content:'';
+  position:fixed;
+  inset:0;
+  z-index:901;
+  pointer-events:none;
+  background:radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 40%, rgba(0,0,0,.65) 100%);
+}
+
+.logo{
+  font-family:var(--pixel);
+  font-size:16px;
+  letter-spacing:1px;
+  text-decoration:none;
+  color:var(--ink);
+  text-shadow:2px 2px 0 var(--neon), 4px 4px 0 rgba(53,240,208,.45);
+}
+.logo span{color:var(--volt)}
+
+.caja{
+  width:min(460px, 100%);
+  background:linear-gradient(180deg, var(--panel) 0%, var(--panel2) 100%);
+  border:1px solid var(--edge);
+  padding:26px 24px 24px;
+  position:relative;
+}
+.caja::before{
+  content:'';
+  position:absolute;
+  inset:-1px;
+  border-top:2px solid var(--neon);
+  pointer-events:none;
+}
+
+.pestanas{display:flex;gap:8px;margin-bottom:22px}
+.pestanas button{
+  flex:1;
+  font-family:var(--pixel);
+  font-size:9px;
+  letter-spacing:.5px;
+  padding:12px 8px;
+  background:transparent;
+  color:var(--dim);
+  border:1px solid var(--edge);
+  cursor:pointer;
+  transition:.15s;
+}
+.pestanas button:hover{color:var(--ink);border-color:var(--dim)}
+.pestanas button.on{background:var(--volt);color:var(--void);border-color:var(--volt)}
+
+h1{
+  font-family:var(--pixel);
+  font-size:11px;
+  letter-spacing:.5px;
+  margin-bottom:6px;
+}
+.sub{color:var(--dim);font-size:13px;margin-bottom:20px}
+
+.campo{margin-bottom:15px}
+.campo label{
+  display:block;
+  font-family:var(--pixel);
+  font-size:8px;
+  letter-spacing:.5px;
+  color:var(--volt);
+  margin-bottom:7px;
+}
+.campo input[type=text],
+.campo input[type=password]{
+  width:100%;
+  background:var(--void);
+  border:1px solid var(--edge);
+  color:var(--ink);
+  font-family:var(--body);
+  font-size:15px;
+  padding:11px 12px;
+  outline:none;
+  transition:.15s;
+}
+.campo input:focus{border-color:var(--neon)}
+.pista{color:var(--dim);font-size:12px;margin-top:6px}
+
+.recordar{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  color:var(--dim);
+  font-size:13px;
+  margin:4px 0 18px;
+  cursor:pointer;
+  user-select:none;
+}
+.recordar input{accent-color:var(--neon);width:15px;height:15px;cursor:pointer}
+
+.btn{
+  width:100%;
+  font-family:var(--pixel);
+  font-size:10px;
+  letter-spacing:.5px;
+  padding:14px 12px;
+  background:var(--neon);
+  color:#12000a;
+  border:none;
+  cursor:pointer;
+  transition:.15s;
+}
+.btn:hover:not(:disabled){background:var(--volt);color:var(--void)}
+.btn:disabled{opacity:.5;cursor:default}
+.btn.suave{background:transparent;color:var(--dim);border:1px solid var(--edge)}
+.btn.suave:hover:not(:disabled){color:var(--ink);border-color:var(--dim);background:transparent}
+.btn.peligro{background:transparent;color:var(--neon);border:1px solid var(--neon)}
+.btn.peligro:hover:not(:disabled){background:var(--neon);color:#12000a}
+
+.aviso{
+  font-size:13px;
+  padding:10px 12px;
+  border-left:3px solid var(--edge);
+  margin-bottom:16px;
+  display:none;
+}
+.aviso.ver{display:block}
+.aviso.mal{border-color:var(--neon);color:#ffb9d6;background:rgba(255,46,136,.08)}
+.aviso.bien{border-color:var(--volt);color:#b6fff0;background:rgba(53,240,208,.08)}
+
+.sesion-datos{
+  border:1px solid var(--edge);
+  padding:16px;
+  margin-bottom:20px;
+}
+.sesion-datos .quien{
+  font-family:var(--pixel);
+  font-size:14px;
+  color:var(--amber);
+  margin-bottom:4px;
+}
+.sesion-datos .usuario{color:var(--dim);font-size:13px}
+
+.plegable{margin-top:18px;border-top:1px solid var(--edge);padding-top:16px}
+.plegable summary{
+  font-family:var(--pixel);
+  font-size:8px;
+  color:var(--dim);
+  cursor:pointer;
+  letter-spacing:.5px;
+  list-style:none;
+}
+.plegable summary::-webkit-details-marker{display:none}
+.plegable summary::before{content:'▸ ';color:var(--neon)}
+.plegable[open] summary::before{content:'▾ '}
+.plegable summary:hover{color:var(--ink)}
+.plegable .cuerpo{padding-top:16px}
+
+.fila-botones{display:flex;gap:8px}
+.fila-botones .btn{flex:1}
+
+.nota{
+  width:min(460px, 100%);
+  color:var(--dim);
+  font-size:12px;
+  line-height:1.7;
+  border-left:2px solid var(--edge);
+  padding-left:12px;
+}
+.nota b{color:var(--amber);font-weight:600}
+
+.volver{
+  font-family:var(--pixel);
+  font-size:9px;
+  color:var(--volt);
+  text-decoration:none;
+}
+.volver:hover{color:var(--neon)}
+
+@media (max-width:520px){
+  .caja{padding:22px 18px 20px}
+  .logo{font-size:13px}
+}
+</style>
+</head>
+<body>
+
+<a class="logo" href="index.html">ARCADE<span>VAULT</span></a>
+
+<!-- ---------- nadie dentro: entrar o registrarse ---------- -->
+<div class="caja" id="cajaAcceso">
+  <div class="pestanas">
+    <button id="tabEntrar" class="on">ENTRAR</button>
+    <button id="tabCrear">CREAR CUENTA</button>
+  </div>
+
+  <div class="aviso" id="aviso"></div>
+
+  <!-- inicio de sesión -->
+  <form id="formEntrar" autocomplete="off">
+    <h1>INSERTA TU FICHA</h1>
+    <p class="sub">Entra para que tus marcas del Hall of Fame lleven tu nombre.</p>
+
+    <div class="campo">
+      <label for="eUsuario">Usuario</label>
+      <input id="eUsuario" type="text" maxlength="16" spellcheck="false" autocomplete="username">
+    </div>
+    <div class="campo">
+      <label for="ePass">Contraseña</label>
+      <input id="ePass" type="password" maxlength="72" autocomplete="current-password">
+    </div>
+    <label class="recordar">
+      <input type="checkbox" id="eRecordar" checked>
+      Seguir dentro en este equipo
+    </label>
+    <button class="btn" type="submit" id="btnEntrar">ENTRAR AL SALÓN</button>
+  </form>
+
+  <!-- alta -->
+  <form id="formCrear" autocomplete="off" hidden>
+    <h1>NUEVA FICHA</h1>
+    <p class="sub">Elige un usuario para entrar y un alias corto para el marcador.</p>
+
+    <div class="campo">
+      <label for="cUsuario">Usuario</label>
+      <input id="cUsuario" type="text" maxlength="16" spellcheck="false" autocomplete="username">
+      <p class="pista">De 3 a 16 caracteres: letras, números, punto, guion y guion bajo.</p>
+    </div>
+    <div class="campo">
+      <label for="cAlias">Alias en el marcador</label>
+      <input id="cAlias" type="text" maxlength="12" spellcheck="false" autocomplete="off">
+      <p class="pista">Hasta 12 caracteres. Si lo dejas vacío usamos tu usuario.</p>
+    </div>
+    <div class="campo">
+      <label for="cPass">Contraseña</label>
+      <input id="cPass" type="password" maxlength="72" autocomplete="new-password">
+      <p class="pista">Mínimo 6 caracteres. No reutilices una de otro sitio.</p>
+    </div>
+    <div class="campo">
+      <label for="cPass2">Repite la contraseña</label>
+      <input id="cPass2" type="password" maxlength="72" autocomplete="new-password">
+    </div>
+    <label class="recordar">
+      <input type="checkbox" id="cRecordar" checked>
+      Seguir dentro en este equipo
+    </label>
+    <button class="btn" type="submit" id="btnCrear">CREAR CUENTA</button>
+  </form>
+</div>
+
+<!-- ---------- sesión abierta ---------- -->
+<div class="caja" id="cajaSesion" hidden>
+  <h1>SESIÓN ABIERTA</h1>
+  <p class="sub">Tus partidas se firman con este alias.</p>
+
+  <div class="aviso" id="aviso2"></div>
+
+  <div class="sesion-datos">
+    <div class="quien" id="sAlias">—</div>
+    <div class="usuario" id="sUsuario">—</div>
+  </div>
+
+  <div class="fila-botones">
+    <a class="btn" id="btnSalon" href="index.html" style="text-align:center;text-decoration:none;line-height:1.4">IR AL SALÓN</a>
+    <button class="btn suave" id="btnSalir">CERRAR SESIÓN</button>
+  </div>
+
+  <details class="plegable">
+    <summary>CAMBIAR ALIAS</summary>
+    <div class="cuerpo">
+      <form id="formAlias" autocomplete="off">
+        <div class="campo">
+          <label for="aAlias">Alias nuevo</label>
+          <input id="aAlias" type="text" maxlength="12" spellcheck="false">
+        </div>
+        <button class="btn suave" type="submit">GUARDAR ALIAS</button>
+      </form>
+    </div>
+  </details>
+
+  <details class="plegable">
+    <summary>CAMBIAR CONTRASEÑA</summary>
+    <div class="cuerpo">
+      <form id="formPass" autocomplete="off">
+        <div class="campo">
+          <label for="pActual">Contraseña actual</label>
+          <input id="pActual" type="password" maxlength="72" autocomplete="current-password">
+        </div>
+        <div class="campo">
+          <label for="pNueva">Contraseña nueva</label>
+          <input id="pNueva" type="password" maxlength="72" autocomplete="new-password">
+        </div>
+        <div class="campo">
+          <label for="pNueva2">Repite la nueva</label>
+          <input id="pNueva2" type="password" maxlength="72" autocomplete="new-password">
+        </div>
+        <button class="btn suave" type="submit">GUARDAR CONTRASEÑA</button>
+      </form>
+    </div>
+  </details>
+
+  <details class="plegable">
+    <summary>BORRAR LA CUENTA</summary>
+    <div class="cuerpo">
+      <form id="formBorrar" autocomplete="off">
+        <p class="pista" style="margin-bottom:12px">
+          Se borra la cuenta de este navegador. Las marcas que ya estén en el
+          Hall of Fame se quedan con el alias con el que se firmaron.
+        </p>
+        <div class="campo">
+          <label for="bPass">Confirma con tu contraseña</label>
+          <input id="bPass" type="password" maxlength="72" autocomplete="current-password">
+        </div>
+        <button class="btn peligro" type="submit">BORRAR CUENTA</button>
+      </form>
+    </div>
+  </details>
+</div>
+
+<p class="nota" id="nota">
+  <b>Este salón no tiene servidor.</b> Las cuentas viven en el almacenamiento
+  de este navegador: sirven para separar jugadores en el mismo equipo, no para
+  proteger nada de valor. Quien abra las herramientas del navegador aquí puede
+  verlas y borrarlas, y si limpias los datos del sitio desaparecen.
+</p>
+
+<a class="volver" href="index.html">&lt; VOLVER AL SALÓN</a>
+
+<script src="cuentas.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+
+const cajaAcceso = $('cajaAcceso'), cajaSesion = $('cajaSesion');
+const formEntrar = $('formEntrar'), formCrear = $('formCrear');
+const tabEntrar = $('tabEntrar'), tabCrear = $('tabCrear');
+
+/* ---------------- avisos ---------------- */
+
+function decir(donde, texto, bien){
+  const caja = $(donde);
+  caja.textContent = texto;
+  caja.className = 'aviso ver ' + (bien ? 'bien' : 'mal');
+}
+
+function callar(donde){
+  const caja = $(donde);
+  caja.className = 'aviso';
+  caja.textContent = '';
+}
+
+/* ---------------- pestañas ---------------- */
+
+function verPestana(cual){
+  const entrar = cual === 'entrar';
+  tabEntrar.classList.toggle('on', entrar);
+  tabCrear.classList.toggle('on', !entrar);
+  formEntrar.hidden = !entrar;
+  formCrear.hidden = entrar;
+  callar('aviso');
+  ($(entrar ? 'eUsuario' : 'cUsuario')).focus();
+}
+
+tabEntrar.addEventListener('click', () => verPestana('entrar'));
+tabCrear.addEventListener('click', () => verPestana('crear'));
+
+/* ---------------- pintar el estado ---------------- */
+
+function pintar(){
+  const sesion = Cuentas.actual();
+  cajaSesion.hidden = !sesion;
+  cajaAcceso.hidden = !!sesion;
+
+  if(sesion){
+    $('sAlias').textContent = sesion.alias;
+    $('sUsuario').textContent = '@' + sesion.usuario;
+    $('aAlias').value = sesion.alias;
+  } else {
+    // sin cuentas todavía, la pestaña útil es la de crear
+    verPestana(Cuentas.cuantas() ? 'entrar' : 'crear');
+  }
+}
+
+/* ---------------- entrar ---------------- */
+
+formEntrar.addEventListener('submit', (e) => {
+  e.preventDefault();
+  callar('aviso');
+  const boton = $('btnEntrar');
+  boton.disabled = true;
+  boton.textContent = 'COMPROBANDO…';
+
+  Cuentas.entrar($('eUsuario').value, $('ePass').value, $('eRecordar').checked)
+    .then(res => {
+      if(!res.ok){
+        decir('aviso', res.error, false);
+        $('ePass').value = '';
+        $('ePass').focus();
+        return;
+      }
+      $('ePass').value = '';
+      pintar();
+      decir('aviso2', 'Dentro. Hola de nuevo, ' + res.sesion.alias + '.', true);
+    })
+    .finally(() => {
+      boton.disabled = false;
+      boton.textContent = 'ENTRAR AL SALÓN';
+    });
+});
+
+/* ---------------- crear cuenta ---------------- */
+
+formCrear.addEventListener('submit', (e) => {
+  e.preventDefault();
+  callar('aviso');
+  const boton = $('btnCrear');
+  boton.disabled = true;
+  boton.textContent = 'CREANDO…';
+
+  Cuentas.registrar($('cUsuario').value, $('cAlias').value, $('cPass').value, $('cPass2').value, $('cRecordar').checked)
+    .then(res => {
+      if(!res.ok){
+        decir('aviso', res.error, false);
+        return;
+      }
+      formCrear.reset();
+      $('cRecordar').checked = true;
+      pintar();
+      decir('aviso2', 'Cuenta creada. Ya juegas como ' + res.sesion.alias + '.', true);
+    })
+    .finally(() => {
+      boton.disabled = false;
+      boton.textContent = 'CREAR CUENTA';
+    });
+});
+
+/* ---------------- sesión abierta ---------------- */
+
+$('btnSalir').addEventListener('click', () => {
+  Cuentas.salir();
+  pintar();
+  decir('aviso', 'Sesión cerrada.', true);
+});
+
+$('formAlias').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const nuevo = Cuentas.ponerAlias($('aAlias').value);
+  if(!nuevo) return decir('aviso2', 'No se pudo guardar el alias.', false);
+  pintar();
+  decir('aviso2', 'Ahora firmas como ' + nuevo + '.', true);
+});
+
+$('formPass').addEventListener('submit', (e) => {
+  e.preventDefault();
+  Cuentas.cambiarPass($('pActual').value, $('pNueva').value, $('pNueva2').value)
+    .then(res => {
+      if(!res.ok) return decir('aviso2', res.error, false);
+      $('formPass').reset();
+      decir('aviso2', 'Contraseña cambiada.', true);
+    });
+});
+
+$('formBorrar').addEventListener('submit', (e) => {
+  e.preventDefault();
+  Cuentas.borrarCuenta($('bPass').value)
+    .then(res => {
+      if(!res.ok) return decir('aviso2', res.error, false);
+      $('formBorrar').reset();
+      pintar();
+      decir('aviso', 'Cuenta borrada.', true);
+    });
+});
+
+/* ---------------- arranque ---------------- */
+
+if(!Cuentas.disponible()){
+  cajaAcceso.hidden = true;
+  cajaSesion.hidden = true;
+  $('nota').innerHTML = '<b>Este navegador no deja guardar datos.</b> Sin almacenamiento no se pueden crear cuentas: prueba a salir del modo incógnito o a permitir los datos de sitio.';
+} else {
+  if(!Cuentas.cifradoFuerte()){
+    $('nota').innerHTML += '<br><br><b>Ojo:</b> este navegador no ofrece WebCrypto, así que las contraseñas se guardan con un resumen débil.';
+  }
+  pintar();
+}
+</script>
+</body>
+</html>

@@ -1,10 +1,10 @@
 # Arcade Vault
 
-Un salón recreativo hecho a mano: diecisiete juegos en HTML, CSS y JavaScript puro, más una tienda que los reúne. Sin frameworks, sin dependencias y sin paso de compilación. Se abre y se juega.
+Un salón recreativo hecho a mano: dieciocho juegos en HTML, CSS y JavaScript puro, más una tienda que los reúne. Sin frameworks, sin dependencias y sin paso de compilación. Se abre y se juega.
 
 ## Jugar
 
-Abre `04-arcade-vault/index.html` en el navegador. Desde ahí se llega a las diecisiete cabinas.
+Abre `04-arcade-vault/index.html` en el navegador. Desde ahí se llega a las dieciocho cabinas.
 
 Cada juego también funciona por su cuenta: abre el `index.html` de su carpeta.
 
@@ -29,8 +29,9 @@ Cada juego también funciona por su cuenta: abre el `index.html` de su carpeta.
 | `17-tanques` | Brigada Acorazada | Tanques, defender la base | Flechas o WASD y espacio |
 | `18-filo-de-sombra` | Filo de Sombra | Plataformas de acción | Flechas, espacio, Z y X |
 | `19-fuera-de-combate` | Fuera de Combate | Boxeo | Flechas, Z, X y espacio |
+| `35-fontanero` | Mundo Fontanero | Plataformas de scroll lateral | Flechas, Z y X |
 
-En casi todas, `P` pausa la partida. En todas, `F` o el botón del panel lateral ponen el juego a pantalla completa. En las tres que suenan, `M` silencia.
+En casi todas, `P` pausa la partida. En todas, `F` o el botón del panel lateral ponen el juego a pantalla completa. En las cuatro que suenan, `M` silencia.
 
 ## Pantalla completa
 
@@ -53,7 +54,7 @@ Cada cabina declara el mando que necesita antes de cargar el archivo:
 | Mando | Cabinas |
 |---|---|
 | Cruceta de cuatro | Cable Suelto, Cruce Peligroso, Brigada Acorazada, Filo de Sombra, Fuera de Combate |
-| Izquierda y derecha | Lluvia de Marcianos |
+| Izquierda y derecha | Lluvia de Marcianos, Mundo Fontanero |
 | Cruceta de Tetris | Bloques de Bolsillo |
 | Nave, con empuje | Chatarra Espacial |
 | Arrastre del dedo | Arkanoid, Duelo de Palas |
@@ -87,7 +88,7 @@ Cada juego guarda la medida que le corresponde, y el marcador sabe cuándo lo bu
 
 | Medida | Juegos | Mejor es |
 |---|---|---|
-| Puntos | Arkanoid, Metro Rush, Tetris, Snake, Marcianos, 2048, Asteroides, Cruce, Tanques, Filo de Sombra, Fuera de Combate | mayor |
+| Puntos | Arkanoid, Metro Rush, Tetris, Snake, Marcianos, 2048, Asteroides, Cruce, Tanques, Filo de Sombra, Fuera de Combate, Mundo Fontanero | mayor |
 | Puertas | Vuelo Rasante | mayor |
 | Rondas | Memoria Neón | mayor |
 | Peloteo más largo | Duelo de Palas | mayor |
@@ -104,7 +105,7 @@ sfx('disparo');
 window.Sonido && Sonido.melodia('tanques');
 ```
 
-El catálogo tiene una treintena de efectos y tres melodías de dieciséis compases, cada una con su línea de bajo. El bucle se programa por adelantado sobre el reloj del audio, que es el único que no se desfasa cuando la pestaña se atasca.
+El catálogo tiene una treintena de efectos y cuatro melodías de dieciséis compases, cada una con su línea de bajo. El bucle se programa por adelantado sobre el reloj del audio, que es el único que no se desfasa cuando la pestaña se atasca.
 
 Los navegadores no dejan sonar nada hasta que el usuario toca algo, así que el contexto se crea en el primer gesto y no antes. Si la pestaña pasa a segundo plano, se suspende sola.
 
@@ -115,6 +116,7 @@ El botón del panel lateral y la tecla `M` lo silencian todo, y la elección se 
 | Brigada Acorazada | Marcha en la menor | Disparos, ladrillo contra acero, explosiones y premios |
 | Filo de Sombra | Tema rápido en mi menor | Espada, salto de muro, artes ninja y faroles |
 | Fuera de Combate | Marcha en do mayor | Campana, esquivas, impactos y la cuenta hasta diez |
+| Mundo Fontanero | Tema saltarín en do mayor | Saltos, bloques, monedas, pisotones y premios |
 
 ## Desarrollo guiado por specs
 
@@ -128,4 +130,5 @@ El botón del panel lateral y la tecla `M` lo silencian todo, y la elección se 
 - **Cuatro en Línea** juega con minimax y poda alfa-beta, en tres profundidades.
 - **Fuera de Combate** no tiene más lógica que un ciclo de cuatro estados por rival: quieto, aviso, golpe y recuperación. El aviso es el gesto que delata lo que viene, y todo el combate consiste en leerlo. Con el rival quieto los golpes rebotan en su guardia, así que el daño solo entra en el hueco que deja al fallar.
 - **Filo de Sombra** monta cada acto encadenando trozos de dieciséis por quince casillas, así que un escenario se lee de un vistazo en el código. Los huecos y las repisas están medidos contra el salto: cuatro casillas de largo y dos de alto es lo que alcanza Ryu, y el muro de diez casillas solo se pasa trepando.
+- **Mundo Fontanero** dibuja a su protagonista de perfil con el origen entre los pies, y cada postura (quieto, andar, correr, derrapar, saltar, caer, planear, celebrar) no es más que un juego de ángulos para piernas y brazos. El ciclo de pasos avanza con la distancia recorrida y no con el reloj, así que los pies nunca patinan. Encima lleva el aplastón al aterrizar, el parpadeo al crecer y un margen de gracia para saltar justo al borde.
 - **Brigada Acorazada** reparte el campo en 26×26 ladrillos de 20 píxeles, así que cada bloque se desmorona a cuartos como en la máquina original. Las cinco fases se escriben en una rejilla de 13×13 letras, y el águila y su muro se colocan aparte para que ningún plano pueda dejarla emparedada.

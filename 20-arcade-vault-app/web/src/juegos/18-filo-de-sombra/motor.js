@@ -1,0 +1,1316 @@
+/**
+ * Motor de la cabina 18-filo-de-sombra.
+ *
+ * Es el mismo JavaScript que corría en la página suelta, sin reescribir.
+ * Lo único nuevo es la envoltura: al desestructurar el entorno, los
+ * nombres de abajo tapan a los globales, de modo que cada escucha, cada
+ * reloj y cada cuadro de animación quedan apuntados y se pueden deshacer
+ * cuando React desmonta la cabina.
+ *
+ * Generado por herramientas/convertir-cabinas.mjs
+ */
+
+export const MANDO = { cruceta:'cuatro', acciones: [
+  { k:' ', txt:'SALTO' }, { k:'z', txt:'ESPADA' }, { k:'x', txt:'NINPO' }
+] };
+
+export function iniciar(entorno) {
+  const {
+    document,
+    window,
+    requestAnimationFrame,
+    cancelAnimationFrame,
+    setTimeout,
+    clearTimeout,
+    setInterval,
+    clearInterval,
+  } = entorno;
+
+  const sfx = n => window.Sonido && Sonido.efecto(n);
+
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height;
+
+  const TILE = 32, FILAS = 15;            // el acto entero cabe de alto: solo se hace scroll lateral
+  const GRAV = 1650, TOPE_CAIDA = 760;
+
+  /* ============================================================
+     El mapa se monta con trozos de 16x15 casillas. Cada acto es
+     una lista de trozos, así que un escenario se lee de un vistazo
+     y no hay que alinear tiras de doscientos caracteres.
+
+     #  bloque       =  plataforma       ^  pinchos
+     L  farol        P  puerta de salida  B  arena del jefe
+     1  soldado      2  lanzador          3  ave       4  saltador
+     ============================================================ */
+  const TROZOS = {
+    llano: [
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "################",
+      "################" ],
+
+    faroles: [
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "   1  L   L 1   ",
+      "################",
+      "################" ],
+
+    pozo: [
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "  1             ",
+      "######    ######",
+      "######    ######"
+   ],
+
+    escalon: [
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "             L  ",
+      "            ####",
+      "                ",
+      "        ####    ",
+      "                ",
+      "    ####        ",
+      "        2       ",
+      "################",
+      "################" ],
+
+    muro: [
+      "                ",
+      "                ",
+      "                ",
+      "       ##       ",
+      "       ##       ",
+      "       ##       ",
+      "       ##       ",
+      "       ##       ",
+      "       ##       ",
+      "       ##       ",
+      "       ##       ",
+      "       ##       ",
+      "  1    ##    1  ",
+      "################",
+      "################"
+   ],
+
+    torre: [
+      "                ",
+      "                ",
+      "  2  L          ",
+      "  ######        ",
+      "                ",
+      "         #######",
+      "                ",
+      "  ######        ",
+      "                ",
+      "         #######",
+      "                ",
+      "  ######        ",
+      "            3   ",
+      "################",
+      "################"
+   ],
+
+    foso: [
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "        3       ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "      ####      ",
+      "                ",
+      "####        ####",
+      "####        ####"
+   ],
+
+    pinchos: [
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "  L ^^^^^   4   ",
+      "################",
+      "################" ],
+
+    aves: [
+      "                ",
+      "                ",
+      "                ",
+      "     3          ",
+      "                ",
+      "                ",
+      "           3    ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "################",
+      "################" ],
+
+    tejados: [
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "    2           ",
+      "  ######        ",
+      "                ",
+      "           L    ",
+      "         ###### ",
+      "                ",
+      "   4            ",
+      "################",
+      "################"
+   ],
+
+    grieta: [
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "        L       ",
+      "       ###      ",
+      "  1             ",
+      "#####      #####",
+      "#####      #####"
+   ],
+
+    chimenea: [
+      "                ",
+      "                ",
+      "###           ##",
+      "###           ##",
+      "###           ##",
+      "###           ##",
+      "###           ##",
+      "###           ##",
+      "###           ##",
+      "###        4  ##",
+      "###           ##",
+      "###           ##",
+      "###   1       ##",
+      "################",
+      "################" ],
+
+    arena: [
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "       B        ",
+      "################",
+      "################" ],
+
+    puerta: [
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "                ",
+      "       P        ",
+      "################",
+      "################" ],
+  };
+
+  const ACTOS = [
+    {
+      nombre: 'ACTO 1 · LOS TEJADOS',
+      tiempo: 200,
+      cielo: ['#120b26', '#2b1246'],
+      piedra: '#3a3358', borde: '#5b528a',
+      trozos: ['llano','faroles','pozo','escalon','muro','tejados','aves','pozo','arena','llano','puerta'],
+      jefe: 'gemelo',
+    },
+    {
+      nombre: 'ACTO 2 · LA FÁBRICA',
+      tiempo: 220,
+      cielo: ['#0b1b26', '#123a46'],
+      piedra: '#2f4a52', borde: '#4d7c86',
+      trozos: ['llano','chimenea','llano','grieta','torre','pinchos','muro','foso','tejados','pozo','arena','llano','puerta'],
+      jefe: 'garra',
+    },
+    {
+      nombre: 'ACTO 3 · EL TEMPLO',
+      tiempo: 240,
+      cielo: ['#26101b', '#4a1230'],
+      piedra: '#4a2b3d', borde: '#8a4d68',
+      trozos: ['llano','pinchos','torre','llano','foso','muro','chimenea','aves','grieta','escalon','pinchos','arena','llano','puerta'],
+      jefe: 'senor',
+    },
+  ];
+
+  /* ---------------- fichas de bichos y jefes ---------------- */
+
+  const BICHOS = {
+    soldado:  { w:26, h:38, vida:1, dano:2, puntos:100, color:'#c8c2e8', vel:70 },
+    lanzador: { w:26, h:38, vida:2, dano:2, puntos:200, color:'#7ce85c', vel:0 },
+    ave:      { w:28, h:22, vida:1, dano:2, puntos:150, color:'#ffb020', vel:150 },
+    saltador: { w:32, h:26, vida:2, dano:3, puntos:250, color:'#ff5a5a', vel:120 },
+  };
+  const MARCAS = { '1':'soldado', '2':'lanzador', '3':'ave', '4':'saltador' };
+
+  const JEFES = {
+    gemelo: { nombre:'EL GEMELO', vida: 18, color:'#b06bff', salto: -640, vel: 165, abanico: 3, dano: 4 },
+    garra:  { nombre:'GARRA DE HIERRO', vida: 24, color:'#35f0d0', salto: -600, vel: 205, abanico: 4, dano: 5 },
+    senor:  { nombre:'SEÑOR DEL TEMPLO', vida: 32, color:'#ff2e88', salto: -680, vel: 230, abanico: 5, dano: 5 },
+  };
+
+  const ARTES = {
+    estrella: { nombre:'Estrella giratoria', coste: 3 },
+    fuego:    { nombre:'Rueda de fuego',     coste: 6 },
+  };
+
+  const OBJETOS = ['vida','azul','rojo','estrella','fuego','puntos'];
+
+  /* ---------------- estado ---------------- */
+
+  let mapa, columnas, acto, jefeFicha;
+  let jugador, bichos, balas, objetos, chispas, jefe;
+  let camara, camaraMin, camaraMax, estado, score, vidas, tiempo, animT, aviso, avisoT;
+  let teclas = {};
+
+  const el = {
+    score: document.getElementById('score'),
+    acto: document.getElementById('acto'),
+    vidas: document.getElementById('vidas'),
+    arte: document.getElementById('arte'),
+    over: document.getElementById('over'),
+    overTitle: document.getElementById('overTitle'),
+    overText: document.getElementById('overText'),
+    overBtn: document.getElementById('overBtn'),
+  };
+
+  /* ---------------- construcción del escenario ---------------- */
+
+  function montarActo(n){
+    acto = ACTOS[Math.min(n, ACTOS.length) - 1];
+    jefeFicha = JEFES[acto.jefe];
+    const filas = [];
+    for(let f = 0; f < FILAS; f++) filas.push('');
+    for(const nombre of acto.trozos){
+      const t = TROZOS[nombre];
+      for(let f = 0; f < FILAS; f++) filas[f] += t[f];
+    }
+    mapa = filas.map(f => f.split(''));
+    columnas = mapa[0].length;
+
+    bichos = []; balas = []; objetos = []; chispas = []; jefe = null;
+
+    for(let f = 0; f < FILAS; f++){
+      for(let c = 0; c < columnas; c++){
+        const s = mapa[f][c];
+        if(MARCAS[s]){
+          nacerBicho(MARCAS[s], c * TILE, f * TILE);
+          mapa[f][c] = ' ';
+        } else if(s === 'B'){
+          acto.jefeX = c * TILE;
+          mapa[f][c] = ' ';
+        } else if(s === 'P'){
+          acto.puertaX = c * TILE;
+          acto.puertaY = f * TILE;
+          mapa[f][c] = ' ';
+        }
+      }
+    }
+
+    acto.jefeCaido = false;
+    camaraMin = 0;
+    camaraMax = columnas * TILE - W;
+    camara = 0;
+    tiempo = acto.tiempo;
+  }
+
+  function baldosa(cx, cy){
+    if(cx < 0 || cx >= columnas) return '#';       // los lados del acto están cerrados
+    if(cy < 0) return ' ';
+    if(cy >= FILAS) return ' ';                     // abajo solo hay vacío: se cae
+    return mapa[cy][cx];
+  }
+
+  function macizo(c){ return c === '#' || c === '='; }
+
+  function tocaMacizo(x, y, w, h){
+    const c0 = Math.floor(x / TILE), c1 = Math.floor((x + w - 1) / TILE);
+    const f0 = Math.floor(y / TILE), f1 = Math.floor((y + h - 1) / TILE);
+    for(let f = f0; f <= f1; f++)
+      for(let c = c0; c <= c1; c++)
+        if(macizo(baldosa(c, f))) return true;
+    return false;
+  }
+
+  function tocaPinchos(e){
+    const c0 = Math.floor(e.x / TILE), c1 = Math.floor((e.x + e.w - 1) / TILE);
+    const f0 = Math.floor(e.y / TILE), f1 = Math.floor((e.y + e.h - 1) / TILE);
+    for(let f = f0; f <= f1; f++)
+      for(let c = c0; c <= c1; c++)
+        if(baldosa(c, f) === '^') return true;
+    return false;
+  }
+
+  /* Mueve un cuerpo resolviendo primero a lo ancho y luego a lo alto.
+     Deja apuntado contra qué chocó, que es lo que usa el agarre al muro. */
+  function moverCuerpo(e, dt){
+    e.chocoLado = 0;
+    e.suelo = false;
+
+    e.x += e.vx * dt;
+    if(tocaMacizo(e.x, e.y, e.w, e.h)){
+      const paso = e.vx > 0 ? -1 : 1;
+      while(tocaMacizo(e.x, e.y, e.w, e.h)) e.x += paso;
+      e.chocoLado = e.vx > 0 ? 1 : -1;
+      e.vx = 0;
+    }
+
+    e.y += e.vy * dt;
+    if(tocaMacizo(e.x, e.y, e.w, e.h)){
+      const paso = e.vy > 0 ? -1 : 1;
+      while(tocaMacizo(e.x, e.y, e.w, e.h)) e.y += paso;
+      if(e.vy > 0) e.suelo = true;
+      e.vy = 0;
+    }
+  }
+
+  function chocan(a, b){
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  /* ---------------- Ryu ---------------- */
+
+  function nuevoJugador(){
+    return {
+      x: TILE * 2, y: TILE * 10, w: 24, h: 42,
+      vx: 0, vy: 0, mirando: 1,
+      suelo: false, chocoLado: 0, pared: 0, saltoPared: 0,
+      ataque: 0, agachado: false, inv: 0,
+      vida: 16, vidaMax: 16, ninpo: 0, arte: null,
+      rueda: 0,
+    };
+  }
+
+  function colocarJugador(){
+    const j = jugador;
+    j.x = TILE * 2; j.y = TILE * 10;
+    j.vx = 0; j.vy = 0; j.pared = 0; j.saltoPared = 0;
+    j.ataque = 0; j.inv = 1.4; j.rueda = 0;
+    j.vida = j.vidaMax;
+  }
+
+  function rectEspada(){
+    const j = jugador;
+    const alto = j.agachado ? 16 : 22;
+    const y = j.y + (j.agachado ? j.h - 26 : 9);
+    const x = j.mirando > 0 ? j.x + j.w - 6 : j.x - 32 + 6;
+    return { x, y, w: 32, h: alto };
+  }
+
+  function saltar(){
+    const j = jugador;
+    if(j.pared){
+      // impulso corto hacia fuera y mucho hacia arriba: así cada salto
+      // gana altura y volver a pegarse al muro sube de verdad
+      j.vy = -600;
+      j.vx = -j.pared * 170;
+      j.mirando = -j.pared;
+      j.saltoPared = 0.1;
+      j.pared = 0;
+      sfx('saltoPared');
+      polvo(j.x + j.w/2, j.y + j.h/2, '#8b83b4');
+    } else if(j.suelo){
+      j.vy = -580;
+      sfx('salto');
+    }
+  }
+
+  function atacar(){
+    const j = jugador;
+    if(j.ataque > 0) return;
+    j.ataque = 0.24;
+    sfx('espada');
+  }
+
+  function usarArte(){
+    const j = jugador;
+    if(!j.arte) return;
+    const ficha = ARTES[j.arte];
+    if(j.ninpo < ficha.coste) return;
+    j.ninpo -= ficha.coste;
+
+    if(j.arte === 'estrella'){
+      balas.push({ x: j.x + j.w/2, y: j.y + 14, w: 16, h: 16,
+                   vx: j.mirando * 420, vy: 0, mio: true, clase:'estrella', vida: 3 });
+    } else {
+      j.rueda = 4;                       // la rueda de fuego gira alrededor un rato
+    }
+    sfx('ninpo');
+    pintarHud();
+  }
+
+  function herirJugador(dano, desde){
+    const j = jugador;
+    if(j.inv > 0) return;
+    j.vida -= dano;
+    j.inv = 1.3;
+    j.vx = (j.x + j.w/2 < desde ? -1 : 1) * 210;
+    j.vy = -230;
+    j.pared = 0;
+    sfx('dano');
+    polvo(j.x + j.w/2, j.y + 16, '#ff2e88');
+    if(j.vida <= 0) morir();
+    pintarHud();
+  }
+
+  function morir(){
+    vidas--;
+    sfx('muerte');
+    polvo(jugador.x + jugador.w/2, jugador.y + 20, '#ff2e88', 18);
+    pintarHud();
+    if(vidas < 0) return terminar(false, 'Ryu cae en el intento');
+    estado = 'muriendo';
+    setTimeout(function(){
+      if(estado !== 'muriendo') return;
+      reiniciarActo();
+      estado = 'jugando';
+    }, 900);
+  }
+
+  function reiniciarActo(){
+    const n = ACTOS.indexOf(acto) + 1;
+    const arte = jugador.arte, ninpo = jugador.ninpo;
+    montarActo(n);
+    colocarJugador();
+    jugador.arte = arte;                 // el arte se conserva; el espíritu se queda a la mitad
+    jugador.ninpo = Math.floor(ninpo / 2);
+    pintarHud();
+  }
+
+  function moverJugador(dt){
+    const j = jugador;
+
+    if(j.inv > 0) j.inv -= dt;
+    if(j.ataque > 0) j.ataque -= dt;
+    if(j.saltoPared > 0) j.saltoPared -= dt;
+    if(j.rueda > 0) j.rueda -= dt;
+
+    j.agachado = !!(teclas.arrowdown || teclas.s) && j.suelo;
+
+    const quiere = (teclas.arrowright || teclas.d ? 1 : 0) - (teclas.arrowleft || teclas.a ? 1 : 0);
+
+    if(j.saltoPared <= 0 && !j.agachado){
+      if(quiere){
+        // en el aire se corrige menos: el salto de Ryu es casi fijo
+        const vel = j.suelo ? 230 : 210;
+        j.vx = j.suelo ? quiere * vel : j.vx + quiere * 900 * dt;
+        j.vx = Math.max(-vel, Math.min(vel, j.vx));
+        j.mirando = quiere;
+      } else if(j.suelo) j.vx = 0;
+    } else if(j.agachado && j.suelo) j.vx = 0;
+
+    j.vy = Math.min(TOPE_CAIDA, j.vy + GRAV * dt);
+
+    // agarre al muro: resbala despacio en vez de quedarse clavado
+    if(j.pared) j.vy = Math.min(j.vy, 42);
+
+    moverCuerpo(j, dt);
+
+    const agarrado = !j.suelo && j.chocoLado !== 0 && quiere === j.chocoLado;
+    if(agarrado && !j.pared) polvo(j.x + j.w/2, j.y + j.h - 6, '#c8c2e8', 3);
+    j.pared = agarrado ? j.chocoLado : 0;
+
+    // mientras el jefe viva no se sale de su arena
+    if(jefe){
+      j.x = Math.max(camara + 4, Math.min(camara + W - 4 - j.w, j.x));
+    }
+
+    if(tocaPinchos(j)) herirJugador(3, j.x + j.w/2 + j.mirando * 20);
+    if(j.y > H + 60) morir();
+
+    // la puerta cierra el acto
+    if(acto.puertaX !== undefined && Math.abs(j.x - acto.puertaX) < 26 && !jefe &&
+       Math.abs(j.y - acto.puertaY) < 60) actoSuperado();
+  }
+
+  /* ---------------- bichos ---------------- */
+
+  function nacerBicho(clase, x, y){
+    const F = BICHOS[clase];
+    bichos.push({
+      clase, x, y: y + (TILE - F.h), w: F.w, h: F.h,
+      vx: -F.vel, vy: 0, vida: F.vida, suelo: false, chocoLado: 0,
+      reloj: Math.random() * 1.4, golpe: 0, casa: { x, y },
+    });
+  }
+
+  function moverBichos(dt){
+    for(const b of bichos){
+      const F = BICHOS[b.clase];
+      if(b.golpe > 0) b.golpe -= dt;
+
+      // solo se mueven los que están cerca de la pantalla
+      if(b.x + b.w < camara - 80 || b.x > camara + W + 80) continue;
+
+      if(b.clase === 'ave'){
+        b.reloj += dt;
+        const haciaMi = jugador.x + jugador.w/2 < b.x + b.w/2 ? -1 : 1;
+        b.x += haciaMi * F.vel * dt * 0.75;
+        b.y = b.casa.y + Math.sin(b.reloj * 3.2) * 46;
+      } else if(b.clase === 'lanzador'){
+        b.vy += GRAV * dt;
+        moverCuerpo(b, dt);
+        b.reloj -= dt;
+        const cerca = Math.abs(b.x - jugador.x) < 340;
+        if(b.reloj <= 0 && cerca){
+          const d = jugador.x < b.x ? -1 : 1;
+          balas.push({ x: b.x + b.w/2, y: b.y + 12, w: 12, h: 8,
+                       vx: d * 260, vy: 0, mio: false, clase:'cuchillo', vida: 4 });
+          b.reloj = 1.5 + Math.random();
+        }
+      } else if(b.clase === 'saltador'){
+        b.vy += GRAV * dt;
+        b.reloj -= dt;
+        if(b.suelo && b.reloj <= 0 && Math.abs(b.x - jugador.x) < 300){
+          b.vy = -470;
+          b.vx = (jugador.x < b.x ? -1 : 1) * F.vel;
+          b.reloj = 1.1 + Math.random() * 0.7;
+        }
+        moverCuerpo(b, dt);
+        if(b.suelo) b.vx *= 0.86;
+      } else {
+        b.vy += GRAV * dt;
+        if(b.suelo && !b.vx) b.vx = -F.vel;
+        // se da la vuelta al topar o al llegar al filo
+        const frente = b.vx > 0 ? b.x + b.w + 3 : b.x - 3;
+        const haySuelo = macizo(baldosa(Math.floor(frente / TILE), Math.floor((b.y + b.h + 4) / TILE)));
+        moverCuerpo(b, dt);
+        if(b.chocoLado || (b.suelo && !haySuelo)) b.vx = -Math.sign(b.vx || 1) * F.vel;
+      }
+
+      if(b.y > H + 80){ b.vida = 0; continue; }
+      if(jugador.inv <= 0 && chocan(b, jugador)) herirJugador(F.dano, b.x + b.w/2);
+    }
+    bichos = bichos.filter(b => b.vida > 0);
+  }
+
+  function herirBicho(b, dano, x){
+    b.vida -= dano;
+    b.golpe = 0.12;
+    sfx('corte');
+    polvo(x, b.y + b.h/2, '#ffe9a8', 5);
+    if(b.vida <= 0){
+      score += BICHOS[b.clase].puntos;
+      polvo(b.x + b.w/2, b.y + b.h/2, BICHOS[b.clase].color, 10);
+      if(Math.random() < 0.28) soltarObjeto(b.x, b.y);
+      pintarHud();
+    }
+  }
+
+  /* ---------------- faroles y objetos ---------------- */
+
+  function romperFarol(c, f){
+    mapa[f][c] = ' ';
+    sfx('ladrillo');
+    polvo(c * TILE + 16, f * TILE + 16, '#ffb020', 9);
+    score += 50;
+    soltarObjeto(c * TILE, f * TILE);
+  }
+
+  function soltarObjeto(x, y){
+    const r = Math.random();
+    let clase;
+    if(r < 0.3) clase = 'azul';
+    else if(r < 0.45) clase = 'rojo';
+    else if(r < 0.6) clase = 'vida';
+    else if(r < 0.75) clase = 'estrella';
+    else if(r < 0.88) clase = 'fuego';
+    else clase = 'puntos';
+    objetos.push({ x, y, w: 24, h: 24, vy: -120, clase, vida: 9 });
+  }
+
+  function moverObjetos(dt){
+    objetos = objetos.filter(o => {
+      o.vida -= dt;
+      o.vy = Math.min(360, o.vy + GRAV * 0.5 * dt);
+      o.y += o.vy * dt;
+      if(tocaMacizo(o.x, o.y, o.w, o.h)){
+        while(tocaMacizo(o.x, o.y, o.w, o.h)) o.y--;
+        o.vy = 0;
+      }
+      if(o.vida <= 0 || o.y > H + 40) return false;
+      if(chocan(o, jugador)){ recoger(o); return false; }
+      return true;
+    });
+  }
+
+  function recoger(o){
+    const j = jugador;
+    if(o.clase === 'vida')          { j.vida = Math.min(j.vidaMax, j.vida + 5); soplar('SALUD'); }
+    else if(o.clase === 'azul')     { j.ninpo += 5; soplar('ESPÍRITU +5'); }
+    else if(o.clase === 'rojo')     { j.ninpo += 10; soplar('ESPÍRITU +10'); }
+    else if(o.clase === 'puntos')   { score += 500; soplar('500 PUNTOS'); }
+    else { j.arte = o.clase; soplar(ARTES[o.clase].nombre.toUpperCase()); }
+    sfx(o.clase === 'vida' ? 'vida' : 'premio');
+    score += 100;
+    pintarHud();
+  }
+
+  function soplar(txt){ aviso = txt; avisoT = 1.6; }
+
+  /* ---------------- balas y espada ---------------- */
+
+  function moverBalas(dt){
+    balas = balas.filter(b => {
+      b.vida -= dt;
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      if(b.vida <= 0) return false;
+      if(b.x + b.w < camara - 60 || b.x > camara + W + 60) return false;
+      if(b.clase !== 'estrella' && tocaMacizo(b.x, b.y, b.w, b.h)){ polvo(b.x, b.y, '#8b83b4', 3); return false; }
+
+      if(b.mio){
+        for(const e of bichos) if(e.vida > 0 && chocan(b, e)){ herirBicho(e, 2, b.x); return false; }
+        if(jefe && chocan(b, jefe)){ herirJefe(2, b.x); return false; }
+      } else if(jugador.inv <= 0 && chocan(b, jugador)){
+        herirJugador(2, b.x);
+        return false;
+      }
+      return true;
+    });
+  }
+
+  function golpeDeEspada(){
+    const j = jugador;
+    if(j.ataque <= 0.09) return;         // solo la primera mitad del gesto corta
+    const hoja = rectEspada();
+
+    for(const b of bichos) if(b.vida > 0 && b.golpe <= 0 && chocan(hoja, b)) herirBicho(b, 1, hoja.x + hoja.w/2);
+    if(jefe && jefe.golpe <= 0 && chocan(hoja, jefe)) herirJefe(1, hoja.x + hoja.w/2);
+
+    // los faroles se parten a espadazos
+    const c0 = Math.floor(hoja.x / TILE), c1 = Math.floor((hoja.x + hoja.w) / TILE);
+    const f0 = Math.floor(hoja.y / TILE), f1 = Math.floor((hoja.y + hoja.h) / TILE);
+    for(let f = f0; f <= f1; f++)
+      for(let c = c0; c <= c1; c++)
+        if(baldosa(c, f) === 'L') romperFarol(c, f);
+
+    for(const b of balas)
+      if(!b.mio && chocan(hoja, b)) b.vida = 0;    // se pueden cortar los cuchillos
+  }
+
+  function rueda(dt){
+    const j = jugador;
+    if(j.rueda <= 0) return;
+    for(let i = 0; i < 3; i++){
+      const a = animT * 5 + i * Math.PI * 2 / 3;
+      const orbe = { x: j.x + j.w/2 + Math.cos(a) * 52 - 11, y: j.y + j.h/2 + Math.sin(a) * 52 - 11, w: 22, h: 22 };
+      for(const b of bichos) if(b.vida > 0 && b.golpe <= 0 && chocan(orbe, b)) herirBicho(b, 1, orbe.x);
+      if(jefe && jefe.golpe <= 0 && chocan(orbe, jefe)) herirJefe(1, orbe.x);
+    }
+  }
+
+  /* ---------------- el jefe ---------------- */
+
+  function despertarJefe(){
+    jefe = {
+      x: camara + W - 120, y: H - 3 * TILE - 56, w: 44, h: 56,
+      vx: 0, vy: 0, vida: jefeFicha.vida, max: jefeFicha.vida,
+      suelo: false, chocoLado: 0, reloj: 1, golpe: 0, entrando: 1,
+    };
+    camaraMin = camara;
+    camaraMax = camara;                  // la cámara se clava en la arena
+    sfx('campana');
+    soplar(jefeFicha.nombre);
+  }
+
+  function herirJefe(dano, x){
+    jefe.vida -= dano;
+    jefe.golpe = 0.14;
+    polvo(x, jefe.y + jefe.h/2, '#ffe9a8', 5);
+    if(jefe.vida <= 0){
+      score += 3000;
+      sfx('explosion');
+      polvo(jefe.x + jefe.w/2, jefe.y + jefe.h/2, jefeFicha.color, 26);
+      jefe = null;
+      camaraMin = 0;
+      camaraMax = columnas * TILE - W;
+      soplar('¡ABATIDO!');
+      pintarHud();
+    }
+  }
+
+  function moverJefe(dt){
+    const J = jefe, F = jefeFicha;
+    if(J.golpe > 0) J.golpe -= dt;
+    if(J.entrando > 0){ J.entrando -= dt; }
+
+    J.vy = Math.min(TOPE_CAIDA, J.vy + GRAV * dt);
+    J.reloj -= dt;
+
+    if(J.suelo){
+      J.vx *= 0.82;
+      if(J.reloj <= 0){
+        const haciaMi = jugador.x + jugador.w/2 < J.x + J.w/2 ? -1 : 1;
+        if(Math.random() < 0.55){
+          J.vy = F.salto;                          // salto de tijera
+          J.vx = haciaMi * F.vel;
+        } else {
+          // abanico de cuchillas
+          for(let i = 0; i < F.abanico; i++){
+            const a = -0.5 + i * (1.0 / Math.max(1, F.abanico - 1));
+            balas.push({ x: J.x + J.w/2, y: J.y + 16, w: 12, h: 12,
+                         vx: haciaMi * 250, vy: a * 260, mio: false, clase:'cuchilla', vida: 3 });
+          }
+        }
+        J.reloj = 1.1 + Math.random() * 0.7;
+      }
+    }
+
+    moverCuerpo(J, dt);
+    if(jugador.inv <= 0 && chocan(J, jugador)) herirJugador(F.dano, J.x + J.w/2);
+  }
+
+  /* ---------------- partida ---------------- */
+
+  function polvo(x, y, color, n){
+    n = n || 6;
+    for(let i = 0; i < n; i++)
+      chispas.push({ x, y, vx:(Math.random()-.5)*220, vy:(Math.random()-.5)*220 - 60,
+                     t:0, dur: 0.3 + Math.random()*0.3, color });
+  }
+
+  function empezarActo(n){
+    window.Sonido && Sonido.melodia('sombra');
+    montarActo(n);
+    colocarJugador();
+    aviso = acto.nombre;
+    avisoT = 2.4;
+    pintarHud();
+  }
+
+  function actoSuperado(){
+    const n = ACTOS.indexOf(acto) + 1;
+    sfx('nivel');
+    score += 1000 + Math.floor(tiempo) * 10;
+    if(n >= ACTOS.length) return terminar(true, 'El templo queda en silencio');
+    estado = 'entreacto';
+    el.overTitle.textContent = 'ACTO ' + n + ' SUPERADO';
+    el.overText.innerHTML = score + ' puntos<br>' + Math.floor(tiempo) + ' segundos de sobra';
+    el.overBtn.textContent = 'SIGUIENTE ACTO';
+    el.over.classList.add('show');
+    pintarHud();
+  }
+
+  function arrancar(){
+    score = 0; vidas = 3;
+    jugador = nuevoJugador();
+    estado = 'jugando';
+    empezarActo(1);
+    el.over.classList.remove('show');
+  }
+
+  function terminar(gano, motivo){
+    if(estado === 'fin') return;
+    estado = 'fin';
+    window.Sonido && Sonido.melodia(null);
+    window.Hall && Hall.registrar('18-filo-de-sombra', score, { unidad:'pts', etiqueta: acto.nombre.split(' · ')[0].toLowerCase() });
+    el.overTitle.textContent = gano ? 'MISIÓN CUMPLIDA' : 'GAME OVER';
+    el.overText.innerHTML = motivo + '<br>' + score + ' puntos';
+    el.overBtn.textContent = 'OTRA PARTIDA';
+    el.over.classList.add('show');
+  }
+
+  function pintarHud(){
+    el.score.textContent = score;
+    el.acto.textContent = acto ? acto.nombre.split(' · ')[1] : '1';
+    el.vidas.textContent = Math.max(0, vidas);
+    el.arte.textContent = jugador && jugador.arte ? ARTES[jugador.arte].nombre : 'Ninguna';
+  }
+
+  function actualizar(dt){
+    animT += dt;
+    if(avisoT > 0) avisoT -= dt;
+
+    tiempo -= dt;
+    if(tiempo <= 0){ tiempo = 0; return morir(); }
+
+    moverJugador(dt);
+    golpeDeEspada();
+    rueda(dt);
+    moverBichos(dt);
+    if(jefe) moverJefe(dt);
+    moverBalas(dt);
+    moverObjetos(dt);
+
+    chispas = chispas.filter(p => {
+      p.t += dt;
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += 460 * dt;
+      return p.t < p.dur;
+    });
+
+    // cámara: por delante de Ryu, dentro de los límites del acto
+    const objetivo = jugador.x + jugador.w/2 - W * 0.42;
+    camara += (objetivo - camara) * Math.min(1, dt * 7);
+    camara = Math.max(camaraMin, Math.min(camaraMax, camara));
+
+    if(!jefe && acto.jefeX !== undefined && jugador.x > acto.jefeX - 40 && !acto.jefeCaido){
+      acto.jefeCaido = true;
+      despertarJefe();
+    }
+  }
+
+  /* ---------------- dibujo ---------------- */
+
+  function dibujarFondo(){
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, acto.cielo[0]);
+    g.addColorStop(1, acto.cielo[1]);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    // luna y estrellas, fijas al cielo
+    ctx.fillStyle = 'rgba(233,229,255,.85)';
+    ctx.fillRect(W - 118, 46, 34, 34);
+    ctx.fillStyle = acto.cielo[0];
+    ctx.fillRect(W - 128, 40, 30, 30);
+    ctx.fillStyle = 'rgba(233,229,255,.3)';
+    for(let i = 0; i < 45; i++) ctx.fillRect((i * 137) % W, (i * 71) % 240, 2, 2);
+
+    // dos filas de siluetas a distinta velocidad
+    const capas = [{ v: 0.22, alto: 150, ancho: 96, color: 'rgba(7,6,13,.55)' },
+                   { v: 0.45, alto: 104, ancho: 72, color: 'rgba(7,6,13,.8)' }];
+    for(const capa of capas){
+      ctx.fillStyle = capa.color;
+      const desfase = -(camara * capa.v) % capa.ancho;
+      for(let i = -1; i * capa.ancho + desfase < W; i++){
+        const x = i * capa.ancho + desfase;
+        const semilla = Math.abs(Math.floor((camara * capa.v + x) / capa.ancho)) % 5;
+        const alto = capa.alto - semilla * 18;
+        ctx.fillRect(x, H - 96 - alto, capa.ancho - 10, alto + 96);
+      }
+    }
+  }
+
+  function dibujarMapa(){
+    const c0 = Math.floor(camara / TILE), c1 = Math.min(columnas - 1, c0 + W / TILE + 1);
+    for(let f = 0; f < FILAS; f++){
+      for(let c = c0; c <= c1; c++){
+        const s = mapa[f][c];
+        if(s === ' ') continue;
+        const x = c * TILE - camara, y = f * TILE;
+
+        if(s === '#' || s === '='){
+          ctx.fillStyle = acto.piedra;
+          ctx.fillRect(x, y, TILE, s === '=' ? 14 : TILE);
+          ctx.fillStyle = acto.borde;
+          ctx.fillRect(x, y, TILE, 3);
+          ctx.fillRect(x, y, 3, s === '=' ? 14 : TILE);
+          ctx.fillStyle = 'rgba(7,6,13,.35)';
+          ctx.fillRect(x + TILE - 4, y, 4, s === '=' ? 14 : TILE);
+          if(s === '#') ctx.fillRect(x, y + TILE - 4, TILE, 4);
+        } else if(s === '^'){
+          ctx.fillStyle = '#c8ccdd';
+          for(let i = 0; i < 4; i++){
+            ctx.beginPath();
+            ctx.moveTo(x + i * 8, y + TILE);
+            ctx.lineTo(x + i * 8 + 4, y + 10);
+            ctx.lineTo(x + i * 8 + 8, y + TILE);
+            ctx.fill();
+          }
+        } else if(s === 'L'){
+          const brillo = 0.6 + Math.sin(animT * 6 + c) * 0.25;
+          ctx.fillStyle = 'rgba(255,176,32,' + (brillo * 0.22) + ')';
+          ctx.beginPath();
+          ctx.arc(x + 16, y + 18, 22, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#6b5320';
+          ctx.fillRect(x + 8, y + 4, 16, 4);
+          ctx.fillRect(x + 15, y, 2, 4);
+          ctx.fillStyle = 'rgba(255,176,32,' + brillo + ')';
+          ctx.beginPath();
+          ctx.arc(x + 16, y + 18, 10, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#ffe9a8';
+          ctx.fillRect(x + 13, y + 13, 6, 10);
+        }
+      }
+    }
+
+    if(acto.puertaX !== undefined && !jefe){
+      const x = acto.puertaX - camara, y = acto.puertaY;
+      ctx.fillStyle = '#12101f';
+      ctx.fillRect(x - 8, y - 26, 40, 58);
+      ctx.fillStyle = Math.floor(animT * 4) % 2 ? '#35f0d0' : '#ff2e88';
+      ctx.fillRect(x - 4, y - 22, 32, 50);
+      ctx.fillStyle = '#12101f';
+      ctx.fillRect(x + 2, y - 14, 20, 38);
+    }
+  }
+
+  function dibujarRyu(){
+    const j = jugador;
+    if(j.inv > 0 && Math.floor(animT * 20) % 2) return;
+
+    const x = j.x - camara, y = j.y;
+    const alto = j.agachado ? j.h - 12 : j.h;
+    const arriba = y + (j.h - alto);
+    const m = j.mirando;
+
+    ctx.save();
+    ctx.translate(x + j.w/2, arriba);
+    ctx.scale(m, 1);
+
+    ctx.fillStyle = '#07060d';                          // silueta, para despegarlo del fondo
+    ctx.fillRect(-12, 0, 24, alto);
+    ctx.fillStyle = '#33409c';                          // traje
+    ctx.fillRect(-10, 8, 20, alto - 16);
+    ctx.fillRect(-8, alto - 12, 6, 12);
+    ctx.fillRect(2, alto - 12, 6, 12);
+    ctx.fillStyle = '#5566d8';                          // brillo del hombro
+    ctx.fillRect(-10, 8, 20, 4);
+    ctx.fillStyle = '#f0c9a0';                          // cara
+    ctx.fillRect(-6, 2, 12, 8);
+    ctx.fillStyle = '#1b1830';
+    ctx.fillRect(-7, 0, 14, 4);
+    ctx.fillStyle = '#ff2e88';                          // banda y bufanda al viento
+    ctx.fillRect(-7, 4, 14, 3);
+    const vuelo = Math.sin(animT * 9) * 3;
+    ctx.fillRect(-16, 9 + vuelo, 9, 4);
+    ctx.fillRect(-22, 12 + vuelo, 7, 3);
+    ctx.fillStyle = '#2b3a7a';
+    ctx.fillRect(-11, 8, 22, 5);
+
+    if(j.pared){
+      ctx.fillStyle = '#f0c9a0';                        // el brazo agarrado al muro
+      ctx.fillRect(6, 10, 8, 5);
+    }
+
+    if(j.ataque > 0){
+      const fase = 1 - j.ataque / 0.24;
+      ctx.fillStyle = '#f0c9a0';
+      ctx.fillRect(6, j.agachado ? alto - 22 : 12, 9, 5);
+      ctx.fillStyle = '#dceaff';
+      const largo = 12 + fase * 22;
+      ctx.fillRect(12, (j.agachado ? alto - 21 : 13) - 1, largo, 5);
+      ctx.fillStyle = 'rgba(220,234,255,.35)';
+      ctx.fillRect(12, (j.agachado ? alto - 26 : 8), largo, 14);
+    }
+    ctx.restore();
+
+    if(j.rueda > 0){
+      for(let i = 0; i < 3; i++){
+        const a = animT * 5 + i * Math.PI * 2 / 3;
+        const ox = x + j.w/2 + Math.cos(a) * 52, oy = j.y + j.h/2 + Math.sin(a) * 52;
+        ctx.fillStyle = Math.floor(animT * 20 + i) % 2 ? '#ffb020' : '#ff5a5a';
+        ctx.fillRect(ox - 9, oy - 9, 18, 18);
+        ctx.fillStyle = '#ffe9a8';
+        ctx.fillRect(ox - 4, oy - 4, 8, 8);
+      }
+    }
+  }
+
+  function dibujarBicho(b){
+    const x = b.x - camara, y = b.y;
+    const F = BICHOS[b.clase];
+    const color = b.golpe > 0 ? '#ffffff' : F.color;
+
+    if(b.clase === 'ave'){
+      const bate = Math.sin(animT * 14) * 7;
+      ctx.fillStyle = color;
+      ctx.fillRect(x + 9, y + 6, 12, 10);
+      ctx.fillRect(x, y + 6 + bate, 10, 5);
+      ctx.fillRect(x + 19, y + 6 - bate, 10, 5);
+      ctx.fillStyle = '#12101f';
+      ctx.fillRect(x + 17, y + 8, 3, 3);
+      return;
+    }
+
+    ctx.fillStyle = '#07060d';
+    ctx.fillRect(x + 1, y - 1, b.w - 2, b.h + 1);
+
+    if(b.clase === 'saltador'){
+      ctx.fillStyle = color;                                    // un bicho a cuatro patas
+      ctx.fillRect(x + 4, y + 6, b.w - 8, b.h - 12);
+      ctx.fillRect(x, y + 2, 11, 10);
+      const zancada = b.suelo ? Math.sin(animT * 16) * 3 : 4;
+      ctx.fillRect(x + 5, y + b.h - 8, 5, 8 - zancada);
+      ctx.fillRect(x + b.w - 11, y + b.h - 8, 5, 8 + zancada);
+      ctx.fillStyle = '#12101f';
+      ctx.fillRect(x + 2, y + 5, 4, 3);
+      return;
+    }
+
+    const paso = b.vx ? Math.sin(animT * 12) * 4 : 0;
+    ctx.fillStyle = color;
+    ctx.fillRect(x + 5, y + 10, b.w - 10, b.h - 22);           // torso
+    ctx.fillRect(x + 6, y + b.h - 12, 5, 12 - Math.max(0, paso));
+    ctx.fillRect(x + b.w - 11, y + b.h - 12, 5, 12 + Math.min(0, paso));
+    ctx.fillStyle = '#f0c9a0';                                  // cara
+    ctx.fillRect(x + 8, y + 2, b.w - 16, 8);
+    ctx.fillStyle = '#12101f';                                  // casco
+    ctx.fillRect(x + 6, y, b.w - 12, 5);
+    ctx.fillRect(x + 8, y + 4, b.w - 16, 2);
+
+    if(b.clase === 'lanzador'){
+      ctx.fillStyle = '#dceaff';
+      const d = jugador.x < b.x ? -1 : 1;
+      ctx.fillRect(d < 0 ? x - 8 : x + b.w, y + 13, 8, 4);
+    } else {
+      ctx.fillStyle = '#8b83b4';
+      const d = b.vx < 0 ? -1 : 1;
+      ctx.fillRect(d < 0 ? x - 4 : x + b.w - 2, y + 12, 6, 3);
+    }
+  }
+
+  function dibujarJefe(){
+    const J = jefe;
+    const x = J.x - camara;
+    ctx.fillStyle = J.golpe > 0 ? '#ffffff' : jefeFicha.color;
+    ctx.fillRect(x + 4, J.y + 12, J.w - 8, J.h - 12);
+    ctx.fillRect(x, J.y + 16, 6, 22);
+    ctx.fillRect(x + J.w - 6, J.y + 16, 6, 22);
+    ctx.fillStyle = '#12101f';
+    ctx.fillRect(x + 10, J.y + 22, J.w - 20, 10);
+    ctx.fillStyle = '#ff2e88';
+    ctx.fillRect(x + 12, J.y + 24, 5, 4);
+    ctx.fillRect(x + J.w - 17, J.y + 24, 5, 4);
+    ctx.fillStyle = J.golpe > 0 ? '#ffffff' : '#1b1830';
+    ctx.fillRect(x + 8, J.y, J.w - 16, 14);
+  }
+
+  function barra(x, y, ancho, alto, parte, color){
+    ctx.fillStyle = 'rgba(7,6,13,.75)';
+    ctx.fillRect(x - 2, y - 2, ancho + 4, alto + 4);
+    ctx.fillStyle = '#2e2a4a';
+    ctx.fillRect(x, y, ancho, alto);
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, Math.max(0, ancho * parte), alto);
+  }
+
+  function dibujarHud(){
+    ctx.font = "10px 'Press Start 2P', monospace";
+    ctx.textAlign = 'left';
+
+    ctx.fillStyle = 'rgba(7,6,13,.62)';
+    ctx.fillRect(0, 0, W, 54);
+
+    ctx.fillStyle = '#e9e5ff';
+    ctx.fillText('RYU', 14, 20);
+    barra(14, 26, 118, 10, jugador.vida / jugador.vidaMax, '#ff2e88');
+
+    ctx.fillStyle = '#35f0d0';
+    ctx.fillText('NINPO ' + jugador.ninpo, 158, 20);
+    ctx.fillStyle = '#ffb020';
+    ctx.fillText('TIEMPO ' + Math.ceil(tiempo), 158, 38);
+
+    ctx.fillStyle = '#e9e5ff';
+    ctx.fillText('PUNTOS ' + score, 320, 20);
+    ctx.fillStyle = '#8b83b4';
+    ctx.fillText('VIDAS ' + Math.max(0, vidas), 320, 38);
+
+    if(jefe){
+      ctx.fillStyle = '#e9e5ff';
+      ctx.textAlign = 'right';
+      ctx.fillText(jefeFicha.nombre, W - 14, 20);
+      ctx.textAlign = 'left';
+      barra(W - 172, 26, 158, 10, jefe.vida / jefe.max, jefeFicha.color);
+    }
+
+    if(avisoT > 0){
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(7,6,13,.85)';
+      ctx.fillRect(0, H/2 - 26, W, 40);
+      ctx.fillStyle = '#35f0d0';
+      ctx.font = "13px 'Press Start 2P', monospace";
+      ctx.fillText(aviso, W/2, H/2);
+      ctx.textAlign = 'left';
+    }
+  }
+
+  function dibujarObjeto(o){
+    const x = o.x - camara, y = o.y;
+    if(o.vida < 3 && Math.floor(o.vida * 8) % 2) return;
+    ctx.fillStyle = 'rgba(7,6,13,.7)';
+    ctx.fillRect(x, y, o.w, o.h);
+    const C = { vida:'#ff2e88', azul:'#35f0d0', rojo:'#ff5a5a', estrella:'#e9e5ff', fuego:'#ffb020', puntos:'#7ce85c' };
+    ctx.fillStyle = C[o.clase];
+    if(o.clase === 'estrella'){
+      ctx.fillRect(x + 3, y + 10, 18, 4);
+      ctx.fillRect(x + 10, y + 3, 4, 18);
+      ctx.fillRect(x + 6, y + 6, 12, 12);
+    } else if(o.clase === 'vida'){
+      ctx.fillRect(x + 4, y + 8, 16, 8);
+      ctx.fillRect(x + 8, y + 4, 8, 16);
+    } else {
+      ctx.fillRect(x + 4, y + 4, 16, 16);
+      ctx.fillStyle = '#12101f';
+      ctx.fillRect(x + 9, y + 9, 6, 6);
+    }
+  }
+
+  function dibujar(){
+    if(!acto) return;
+    dibujarFondo();
+    dibujarMapa();
+
+    for(const o of objetos) dibujarObjeto(o);
+    for(const b of bichos) if(b.x + b.w > camara - 40 && b.x < camara + W + 40) dibujarBicho(b);
+    if(jefe) dibujarJefe();
+    if(estado !== 'muriendo') dibujarRyu();
+
+    for(const b of balas){
+      const x = b.x - camara;
+      if(b.clase === 'estrella'){
+        ctx.fillStyle = '#e9e5ff';
+        const g = Math.floor(animT * 24) % 2;
+        ctx.fillRect(x + (g ? 0 : 4), b.y + (g ? 4 : 0), g ? 16 : 8, g ? 8 : 16);
+        ctx.fillRect(x + (g ? 4 : 0), b.y + (g ? 0 : 4), g ? 8 : 16, g ? 16 : 8);
+      } else {
+        ctx.fillStyle = b.clase === 'cuchilla' ? '#ff5a5a' : '#dceaff';
+        ctx.fillRect(x, b.y, b.w, b.h);
+      }
+    }
+
+    for(const p of chispas){
+      ctx.fillStyle = p.color;
+      const r = 5 * (1 - p.t / p.dur);
+      ctx.fillRect(p.x - camara - r/2, p.y - r/2, r + 1, r + 1);
+    }
+
+    dibujarHud();
+  }
+
+  /* ---------------- teclado ---------------- */
+
+  const MOVIMIENTO = ['arrowleft','arrowright','arrowup','arrowdown',' '];
+
+  document.addEventListener('keydown', e => {
+    const k = e.key.toLowerCase();
+    teclas[k] = true;
+    if(MOVIMIENTO.includes(k)) e.preventDefault();
+    if(e.repeat) return;
+
+    if(k === 'p'){
+      if(estado === 'jugando'){
+        estado = 'pausa';
+        el.overTitle.textContent = 'PAUSA';
+        el.overText.textContent = 'Pulsa P para seguir';
+        el.overBtn.textContent = 'REINICIAR';
+        el.over.classList.add('show');
+      } else if(estado === 'pausa'){
+        estado = 'jugando';
+        el.over.classList.remove('show');
+      }
+      return;
+    }
+    if(estado !== 'jugando') return;
+    if(k === ' ' || k === 'arrowup' || k === 'w') saltar();
+    else if(k === 'z' || k === 'j') atacar();
+    else if(k === 'x' || k === 'k') usarArte();
+  });
+  document.addEventListener('keyup', e => { teclas[e.key.toLowerCase()] = false; });
+
+  el.overBtn.addEventListener('click', () => {
+    if(estado === 'entreacto'){
+      estado = 'jugando';
+      empezarActo(ACTOS.indexOf(acto) + 2);
+      el.over.classList.remove('show');
+    } else arrancar();
+  });
+
+  /* ---------------- arranque ---------------- */
+
+  score = 0; vidas = 3; animT = 0; avisoT = 0;
+  jugador = nuevoJugador();
+  montarActo(1);
+  colocarJugador();
+  estado = 'menu';
+  pintarHud();
+
+  let ultimo = performance.now();
+  function bucle(t){
+    const dt = Math.min(0.045, (t - ultimo) / 1000);
+    ultimo = t;
+    if(estado === 'jugando') actualizar(dt);
+    dibujar();
+    requestAnimationFrame(bucle);
+  }
+  requestAnimationFrame(bucle);
+}

@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mundo Fontanero</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🍄</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#07060d; --panel:#12101f; --edge:#2e2a4a;
+  --ink:#e9e5ff; --dim:#8b83b4; --neon:#ff2e88; --volt:#35f0d0; --amber:#ffb020;
+  --pixel:'Press Start 2P', monospace;
+  --body:'Chakra Petch', 'Trebuchet MS', sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:var(--void); color:var(--ink); font-family:var(--body);
+  min-height:100vh; display:flex; align-items:center; justify-content:center;
+  padding:20px; gap:26px; flex-wrap:wrap;
+}
+body::before{
+  content:''; position:fixed; inset:0; z-index:99; pointer-events:none;
+  background:repeating-linear-gradient(to bottom, rgba(0,0,0,.22) 0 1px, transparent 1px 3px);
+}
+h1{font-family:var(--pixel); font-size:13px; margin-bottom:18px; text-shadow:2px 2px 0 var(--volt)}
+.stage{position:relative; border:1px solid var(--edge); background:#05040c;
+       box-shadow:0 0 0 6px var(--panel), 0 20px 60px rgba(0,0,0,.7)}
+canvas{display:block; max-width:100%; height:auto; image-rendering:pixelated}
+.side{width:196px}
+.box{border:1px solid var(--edge); background:var(--panel); padding:13px 14px; margin-bottom:12px}
+.box h2{font-family:var(--pixel); font-size:9px; color:var(--volt); margin-bottom:9px}
+.box .val{font-family:var(--pixel); font-size:15px; color:var(--amber)}
+.box .val.corto{font-size:10px; line-height:1.6}
+.keys{font-size:12px; color:var(--dim); line-height:1.9}
+.keys b{color:var(--ink); font-weight:600}
+.back{display:inline-block; margin-top:4px; font-family:var(--pixel); font-size:8px;
+      color:var(--void); background:var(--volt); padding:9px 11px; text-decoration:none}
+.back:hover{background:var(--neon); color:#12000a}
+.overlay{
+  position:absolute; inset:0; display:none; flex-direction:column;
+  align-items:center; justify-content:center; gap:16px;
+  background:rgba(5,4,12,.88); text-align:center; padding:20px;
+}
+.overlay.show{display:flex}
+.overlay p{font-family:var(--pixel); font-size:15px; line-height:1.9}
+.overlay small{color:var(--dim); font-size:13px; display:block; margin-top:6px}
+.overlay button{
+  font-family:var(--pixel); font-size:10px; border:0; cursor:pointer;
+  background:var(--neon); color:#12000a; padding:13px 18px;
+}
+.overlay button:hover{background:var(--volt); color:var(--void)}
+</style>
+</head>
+<body>
+
+<div>
+  <h1>MUNDO FONTANERO</h1>
+  <div class="stage">
+    <canvas id="cv" width="640" height="360"></canvas>
+    <div class="overlay show" id="over">
+      <p id="overTitle">MUNDO FONTANERO</p>
+      <small id="overText">Tres mundos, una gorra y muchas setas</small>
+      <button id="overBtn">EMPEZAR</button>
+    </div>
+  </div>
+</div>
+
+<div class="side">
+  <div class="box"><h2>PUNTOS</h2><div class="val" id="score">0</div></div>
+  <div class="box"><h2>MONEDAS</h2><div class="val" id="coins">0</div></div>
+  <div class="box"><h2>VIDAS</h2><div class="val" id="lives">3</div></div>
+  <div class="box"><h2>MUNDO</h2><div class="val corto" id="world">PRADO 1-1</div></div>
+  <div class="box"><h2>TIEMPO</h2><div class="val" id="time">320</div></div>
+  <div class="box ancho solo-texto">
+    <h2>CONTROLES</h2>
+    <div class="keys">
+      <b>&larr; &rarr;</b> correr<br>
+      <b>Z</b> o <b>espacio</b> saltar<br>
+      <b>X</b> salto giratorio<br>
+      <b>P</b> pausa
+    </div>
+  </div>
+  <div class="box ancho solo-texto">
+    <h2>REGLAS</h2>
+    <div class="keys">
+      La seta te hace grande y la pluma te da capa: cae con el salto pulsado y planeas. El salto giratorio rompe ladrillos. Pisa una coraza y patea el caparazón.
+    </div>
+  </div>
+  <a class="back" href="../04-arcade-vault/index.html">&lt; VOLVER AL SALÓN</a>
+</div>
+
+<script src="../04-arcade-vault/cuentas.js"></script>
+<script src="../04-arcade-vault/salon.js"></script>
+<script src="../04-arcade-vault/pantalla.js"></script>
+<script src="../04-arcade-vault/sonido.js"></script>
+<script>window.MANDO = { cruceta:'horizontal', acciones: [{ k:'z', txt:'SALTO' }, { k:'x', txt:'GIRO' }, { k:'p', txt:'PAUSA' }] };</script>
+<script src="../04-arcade-vault/movil.js"></script>
+<script>
+/* ============================================================
+   MUNDO FONTANERO
+
+   Plataformas de scroll lateral a la manera de las consolas de
+   dieciséis bits: correr, saltar, salto giratorio, seta que te hace
+   grande y capa para planear. Todo el dibujo es geometría; aquí no
+   entra ni un sprite de nadie.
+   ============================================================ */
+
+const T = 20;            // lado de la baldosa
+const FILAS = 18;        // alto del mapa, en baldosas
+const VISTA_W = 640;
+const VISTA_H = 360;
+
+/* Baldosas: # tierra · = piedra · O tubo · B ladrillo · u ladrillo gastado
+   ? M F bloques con premio · ^ pinchos · C moneda · G meta
+   S salida · g caminante · k coraza · f volador */
+const SOLIDAS = '#=OB?MFu';
+const PREMIO = { '?': 'moneda', M: 'seta', F: 'pluma' };
+
+const NIVELES = [
+  {
+    nombre: 'PRADO 1-1',
+    cielo: '#4aa8e0',
+    tierra: '#b8562f',
+    tiempo: 320,
+    mapa: [
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '          CCCC           C C                                                  CCCCC',
+    '                                                    CCCCCC                          f',
+    '                                                  f                           =====             CCCC',
+    '                                    C               ======                              C',
+    '          B?BB          BBMBB                                 C',
+    '                                   ===                                BB?BB            ===         =',
+    '                                              OO     B?BB    ===                                  ==',
+    '   S              OO                          OO                                                 ===    OO      G',
+    '                  OO    g     g k         g   OO        g           g       k   g             g ====    OO',
+    '###################################   #######################   #######################   ##########################',
+    '###################################   #######################   #######################   ##########################',
+    ],
+  },
+  {
+    nombre: 'CUEVA 1-2',
+    cielo: '#1a1038',
+    tierra: '#4a3a6a',
+    tiempo: 340,
+    mapa: [
+    '============================================================================================================================',
+    '',
+    '',
+    '        =========             ===========                         =============                         ===============',
+    '',
+    '',
+    '',
+    '                                                         f                                                    f',
+    '                      CCC f      CCCCC                                                          f       CCCCC',
+    '      CCCC                                                            CCCCCCC',
+    '                                               C     B?BB                             C   BBFBB',
+    '                       C         BB?BB                      C         =======                     C         =',
+    '      BMBB                                   =====                                   ===                   ==',
+    '                     =====                                 ===    OO                             ===      ===',
+    '   S                                                              OO                                     ====     OO    G',
+    '            g     k         ^^ g       g ^^^  k     g           g OO    g k    ^^^ g        g       k g =====     OO',
+    '#####################     ###################     #########   #######################   #########   ########################',
+    '#####################     ###################     #########   #######################   #########   ########################',
+    ],
+  },
+  {
+    nombre: 'CASTILLO 1-3',
+    cielo: '#2a1020',
+    tierra: '#5a2a3a',
+    tiempo: 360,
+    mapa: [
+    '====================================================================================================================================',
+    '',
+    '          ===============               =================                       =================               =================',
+    '',
+    '',
+    '',
+    '                                  B?f                                 f                                           f',
+    '                    f                                  CCCCC                        f                                 CCCCCC',
+    '                  CCC                             f                                   CCCCC         f',
+    '                                                                          BFBB                           CCCCCCC',
+    '                   C             CCCCC           C     BB?BB                                                               =',
+    '                        BBMBB                                        C                =====                               ==',
+    '                 =====                         =====                                                     =======         ===',
+    '                                 =====                             =====                     BB?BB                      ====',
+    '   S                                                                                                                   =====    G',
+    '        g   ^^k           g   k^        g  ^k^        g     g  ^k^       g      ^^^^    g   k   g   ^^^^  g   k     g ======',
+    '#################     ###########     #########     ###############     #######     ###############     #########     ##############',
+    '#################     ###########     #########     ###############     #######     ###############     #########     ##############',
+    ],
+  },
+];
+
+
+/* ---------------- física ---------------- */
+
+const GRAVEDAD = 1500;
+const ACEL = 900;
+const ROCE = 1100;
+const VEL_MAX = 205;
+const SALTO = -455;
+const SALTO_CORTO = -190;   // al soltar pronto se corta el impulso
+const SALTO_GIRO = -395;
+const REBOTE = -270;
+const VEL_PLANEO = 95;      // caída con la capa desplegada
+const GRAVEDAD_ITEM = 900;
+const COYOTE = 0.09;        // el salto aún vale un instante después de dejar el borde
+const BUFFER = 0.12;        // y un instante antes de tocar el suelo
+const ATERRIZA = 0.16;      // lo que dura el aplastón al caer
+
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+
+const el = {
+  score: document.getElementById('score'),
+  coins: document.getElementById('coins'),
+  lives: document.getElementById('lives'),
+  world: document.getElementById('world'),
+  time: document.getElementById('time'),
+  over: document.getElementById('over'),
+  overTitle: document.getElementById('overTitle'),
+  overText: document.getElementById('overText'),
+  overBtn: document.getElementById('overBtn'),
+};
+
+const sfx = (n) => window.Sonido && Sonido.efecto(n);
+const musica = (n) => window.Sonido && Sonido.melodia(n);
+
+let mapa = [];
+let anchoNivel = 0;
+let nivelActual = 0;
+let jug, enemigos, items, trozos, chispas;
+let polvo = [];          // polvareda de pisadas, derrapes y aterrizajes
+let textos = [];         // puntos que suben flotando
+let golpes = {};         // bloques que dan un saltito al golpearlos: "c,f" -> segundos
+let monedasSaltan = [];  // monedas que salen disparadas de un bloque
+let restos = [];         // enemigos aplastados o que caen dados la vuelta
+let congelado = 0;       // la acción se para un momento al crecer
+let camX = 0, camSuave = 0;
+let puntos = 0, monedas = 0, vidas = 3, tiempo = 0;
+let estado = 'menu';     // menu | jugando | pausa | muerto | meta | fin
+let espera = 0;          // segundos de pausa entre estados
+let reloj = 0;           // reloj de animaciones
+
+/* ---------------- mapa ---------------- */
+
+function baldosa(c, f) {
+  if (c < 0 || f < 0 || f >= FILAS || c >= anchoNivel) return ' ';
+  return mapa[f][c] || ' ';
+}
+
+function ponerBaldosa(c, f, ch) {
+  if (c < 0 || f < 0 || f >= FILAS || c >= anchoNivel) return;
+  mapa[f][c] = ch;
+}
+
+function solida(c, f) {
+  return SOLIDAS.indexOf(baldosa(c, f)) >= 0;
+}
+
+/** Por debajo del mapa está el vacío. */
+function fuera(y) {
+  return y > FILAS * T + 40;
+}
+
+function cargarNivel(n) {
+  const nivel = NIVELES[n];
+  anchoNivel = Math.max(...nivel.mapa.map((f) => f.length));
+  mapa = nivel.mapa.map((f) => f.padEnd(anchoNivel, ' ').split(''));
+
+  enemigos = [];
+  items = [];
+  trozos = [];
+  chispas = [];
+  polvo = [];
+  textos = [];
+  golpes = {};
+  monedasSaltan = [];
+  restos = [];
+  congelado = 0;
+  let inicio = { c: 2, f: FILAS - 4 };
+
+  for (let f = 0; f < FILAS; f++) {
+    for (let c = 0; c < anchoNivel; c++) {
+      const ch = mapa[f][c];
+      if (ch === 'S') { inicio = { c, f }; mapa[f][c] = ' '; }
+      if (ch === 'g' || ch === 'k' || ch === 'f') {
+        enemigos.push(nuevoEnemigo(ch, c, f));
+        mapa[f][c] = ' ';
+      }
+    }
+  }
+
+  jug = {
+    x: inicio.c * T, y: inicio.f * T, w: 16, h: 18,
+    vx: 0, vy: 0, suelo: false, mira: 1,
+    grande: false, capa: false, giro: false,
+    inv: 0, planeando: false,
+    anim: 0,            // fase del ciclo de pasos
+    aterriza: 0, fuerzaAterriza: 0,
+    derrape: false, crece: 0, polvoT: 0,
+    coyote: 0, buffer: 0, bufferGiro: 0,
+    estela: [],
+  };
+  camX = 0;
+  camSuave = 0;
+  tiempo = nivel.tiempo;
+  el.world.textContent = nivel.nombre;
+  pintarHud();
+}
+
+function nuevoEnemigo(ch, c, f) {
+  if (ch === 'f') {
+    return {
+      tipo: 'volador', x: c * T + 2, y: f * T, y0: f * T, w: 18, h: 14,
+      vx: -55, vy: 0, estado: 'anda', t: Math.random() * 6, vivo: true,
+    };
+  }
+  return {
+    tipo: ch === 'k' ? 'coraza' : 'caminante',
+    x: c * T + 1, y: f * T + (ch === 'k' ? 2 : 4),
+    w: 18, h: ch === 'k' ? 18 : 16,
+    vx: ch === 'k' ? -52 : -42, vy: 0, estado: 'anda', t: 0, vivo: true,
+  };
+}
+
+/* ---------------- colisión contra el mapa ---------------- */
+
+function rango(caja) {
+  return {
+    c0: Math.floor(caja.x / T), c1: Math.floor((caja.x + caja.w - 1) / T),
+    f0: Math.floor(caja.y / T), f1: Math.floor((caja.y + caja.h - 1) / T),
+  };
+}
+
+/** Mueve una caja contra el mapa, primero en x y luego en y. */
+function moverCaja(caja, dt, alTecho) {
+  caja.x += caja.vx * dt;
+  let r = rango(caja);
+  for (let f = r.f0; f <= r.f1; f++) {
+    if (caja.vx > 0 && solida(r.c1, f)) {
+      caja.x = r.c1 * T - caja.w; caja.vx = 0; caja.choque = 'derecha'; break;
+    }
+    if (caja.vx < 0 && solida(r.c0, f)) {
+      caja.x = (r.c0 + 1) * T; caja.vx = 0; caja.choque = 'izquierda'; break;
+    }
+  }
+  if (caja.x < 0) { caja.x = 0; caja.vx = 0; caja.choque = 'izquierda'; }
+
+  caja.y += caja.vy * dt;
+  caja.suelo = false;
+  r = rango(caja);
+  // Los pies se miran justo en su borde, no en su último píxel: si no, al
+  // estar parado la gravedad lo baja menos de un píxel, no toca la fila de
+  // abajo y el suelo parpadea un cuadro sí y otro no.
+  const fPies = Math.floor((caja.y + caja.h) / T);
+  for (let c = r.c0; c <= r.c1; c++) {
+    if (caja.vy > 0 && solida(c, fPies)) {
+      caja.y = fPies * T - caja.h; caja.vy = 0; caja.suelo = true; break;
+    }
+    if (caja.vy < 0 && solida(c, r.f0)) {
+      caja.y = (r.f0 + 1) * T; caja.vy = 0;
+      if (alTecho) alTecho(c, r.f0);
+      break;
+    }
+  }
+}
+
+/* ---------------- bloques ---------------- */
+
+function golpearBloque(c, f) {
+  const ch = baldosa(c, f);
+
+  // el bloque da un saltito y se lleva por delante a quien esté encima
+  golpes[c + ',' + f] = 0;
+  empujarDesdeAbajo(c, f);
+
+  if (PREMIO[ch]) {
+    ponerBaldosa(c, f, 'u');
+    chispas.push({ x: c * T + 10, y: f * T, t: 0 });
+    if (PREMIO[ch] === 'moneda') {
+      monedasSaltan.push({ x: c * T + 10, y: f * T - 4, vy: -330, t: 0 });
+      textos.push({ txt: '100', x: c * T + 10, y: f * T - 30, t: 0 });
+      cobrarMoneda();
+    } else {
+      items.push({
+        tipo: PREMIO[ch], x: c * T + 2, y: f * T - 16, w: 16, h: 16,
+        vx: PREMIO[ch] === 'seta' ? 60 : 40, vy: -120, suelo: false, t: 0,
+      });
+      sfx('premio');
+    }
+    return;
+  }
+
+  if (ch === 'B') {
+    if (jug.grande || jug.giro) romperLadrillo(c, f);
+    else sfx('metal');
+  } else if (ch !== ' ') {
+    sfx('metal');
+  }
+}
+
+function romperLadrillo(c, f) {
+  ponerBaldosa(c, f, ' ');
+  puntos += 20;
+  sfx('ladrillo');
+  for (let i = 0; i < 4; i++) {
+    trozos.push({
+      x: c * T + (i % 2) * 10, y: f * T + Math.floor(i / 2) * 10,
+      vx: (i % 2 ? 80 : -80) + Math.random() * 40 - 20,
+      vy: -180 - Math.random() * 90, t: 0,
+    });
+  }
+}
+
+function cobrarMoneda() {
+  monedas++;
+  puntos += 100;
+  sfx('premio');
+  if (monedas % 50 === 0) { vidas++; sfx('vida'); }
+}
+
+/** Puntos que además se ven subir desde donde se ganaron. */
+function sumar(n, x, y) {
+  puntos += n;
+  textos.push({ txt: String(n), x, y, t: 0 });
+}
+
+function empujarDesdeAbajo(c, f) {
+  const encima = { x: c * T, y: f * T - 6, w: T, h: 6 };
+  for (const e of enemigos) {
+    if (e.vivo && e.tipo !== 'volador' && solapan(encima, e)) matar(e, 'vuela');
+  }
+  for (const it of items) {
+    if (it.tipo === 'seta' && solapan(encima, it)) { it.vy = -260; it.vx = -it.vx; }
+  }
+}
+
+function levantarPolvo(x, y, n, empuje = 0) {
+  for (let i = 0; i < n; i++) {
+    polvo.push({
+      x: x + (Math.random() - 0.5) * 8, y: y - 2,
+      vx: (Math.random() - 0.5) * 60 + empuje, vy: -15 - Math.random() * 45,
+      t: 0, vida: 0.28 + Math.random() * 0.22, r: 1.5 + Math.random() * 2,
+    });
+  }
+}
+
+/* ---------------- teclado ---------------- */
+
+const teclas = {};
+let saltoPedido = false, giroPedido = false;
+
+const ES_IZQ = (k) => k === 'arrowleft' || k === 'a';
+const ES_DER = (k) => k === 'arrowright' || k === 'd';
+const ES_SALTO = (k) => k === ' ' || k === 'z' || k === 'arrowup' || k === 'w';
+
+document.addEventListener('keydown', (e) => {
+  const k = e.key.toLowerCase();
+
+  if (k === 'p' && (estado === 'jugando' || estado === 'pausa')) {
+    if (estado === 'jugando') {
+      estado = 'pausa';
+      musica(null);
+      mostrar('PAUSA', 'Pulsa P para seguir', 'REINICIAR');
+    } else {
+      estado = 'jugando';
+      musica('fontanero');
+      el.over.classList.remove('show');
+    }
+    return;
+  }
+
+  if (estado === 'menu' || estado === 'fin') {
+    if (ES_SALTO(k) || k === 'enter') { e.preventDefault(); empezarPartida(); }
+    return;
+  }
+
+  if (ES_IZQ(k) || ES_DER(k) || ES_SALTO(k) || k === 'x') e.preventDefault();
+  if (!teclas[k]) {
+    if (ES_SALTO(k)) saltoPedido = true;
+    if (k === 'x') giroPedido = true;
+  }
+  teclas[k] = true;
+});
+
+document.addEventListener('keyup', (e) => { teclas[e.key.toLowerCase()] = false; });
+
+const pulsado = (prueba) => Object.keys(teclas).some((k) => teclas[k] && prueba(k));
+
+/* ---------------- jugador ---------------- */
+
+function actualizarJugador(dt) {
+  const izq = pulsado(ES_IZQ), der = pulsado(ES_DER);
+  const pide = izq && !der ? -1 : der && !izq ? 1 : 0;
+
+  // pedir la dirección contraria con carrerilla es un derrape: frena más fuerte
+  jug.derrape = jug.suelo && pide !== 0 && Math.sign(jug.vx) === -pide && Math.abs(jug.vx) > 90;
+
+  if (pide) {
+    jug.vx += pide * ACEL * (jug.derrape ? 2.2 : 1) * dt;
+    jug.mira = pide;
+  } else {
+    const freno = ROCE * dt;
+    jug.vx = Math.abs(jug.vx) <= freno ? 0 : jug.vx - Math.sign(jug.vx) * freno;
+  }
+  jug.vx = Math.max(-VEL_MAX, Math.min(VEL_MAX, jug.vx));
+
+  jug.coyote = jug.suelo ? COYOTE : jug.coyote - dt;
+  jug.buffer = saltoPedido ? BUFFER : jug.buffer - dt;
+  jug.bufferGiro = giroPedido ? BUFFER : jug.bufferGiro - dt;
+
+  if (jug.suelo) jug.giro = false;
+  if (jug.coyote > 0 && jug.vy >= 0) {
+    if (jug.buffer > 0) { jug.vy = SALTO; despegar(); sfx('salto'); }
+    else if (jug.bufferGiro > 0) { jug.vy = SALTO_GIRO; jug.giro = true; despegar(); sfx('saltoPared'); }
+  }
+  // soltar pronto corta el salto; el giratorio se sostiene con su propia tecla
+  const sostiene = jug.giro ? !!teclas.x : pulsado(ES_SALTO);
+  if (jug.vy < SALTO_CORTO && !sostiene) jug.vy = SALTO_CORTO;
+
+  jug.vy += GRAVEDAD * dt;
+
+  jug.planeando = jug.capa && jug.vy > 0 && pulsado(ES_SALTO) && !jug.suelo;
+  if (jug.planeando) jug.vy = Math.min(jug.vy, VEL_PLANEO);
+  jug.vy = Math.min(jug.vy, 900);
+
+  // al crecer, la cabeza sube: los pies se quedan donde estaban
+  const alto = jug.grande ? 26 : 18;
+  if (alto !== jug.h) { jug.y -= alto - jug.h; jug.h = alto; }
+
+  const enAire = !jug.suelo, caida = jug.vy;
+  moverCaja(jug, dt, golpearBloque);
+  if (jug.suelo && enAire && caida > 200) aterrizar(caida);
+
+  // el ciclo de pasos avanza con la distancia recorrida, no con el reloj:
+  // así las piernas nunca patinan sobre el suelo
+  if (jug.suelo) jug.anim += Math.abs(jug.vx) * dt * 0.22;
+  if (jug.aterriza > 0) jug.aterriza -= dt;
+  if (jug.crece > 0) jug.crece -= dt;
+
+  jug.polvoT -= dt;
+  if (jug.suelo && jug.polvoT <= 0) {
+    if (jug.derrape) {
+      levantarPolvo(jug.x + jug.w / 2 + jug.mira * 5, jug.y + jug.h, 1, -jug.mira * 40);
+      jug.polvoT = 0.05;
+    } else if (Math.abs(jug.vx) > VEL_MAX * 0.92) {
+      levantarPolvo(jug.x + jug.w / 2 - jug.mira * 6, jug.y + jug.h, 1, -jug.mira * 30);
+      jug.polvoT = 0.16;
+    }
+  }
+
+  if (jug.giro) jug.estela.push({ x: jug.x, y: jug.y, h: jug.h, t: 0 });
+  for (const s of jug.estela) s.t += dt;
+  jug.estela = jug.estela.filter((s) => s.t < 0.18);
+
+  if (jug.inv > 0) jug.inv -= dt;
+
+  recogerBaldosas();
+
+  if (fuera(jug.y)) morir();
+}
+
+/** Monedas, pinchos y meta: lo que se toca sin chocar. */
+function recogerBaldosas() {
+  const r = rango(jug);
+  for (let f = r.f0; f <= r.f1; f++) {
+    for (let c = r.c0; c <= r.c1; c++) {
+      const ch = baldosa(c, f);
+      if (ch === 'C') { ponerBaldosa(c, f, ' '); cobrarMoneda(); }
+      if (ch === '^') danio();
+      if (ch === 'G') llegarMeta();
+    }
+  }
+}
+
+function despegar() {
+  jug.suelo = false;
+  jug.coyote = 0;
+  jug.buffer = 0;
+  jug.bufferGiro = 0;
+  levantarPolvo(jug.x + jug.w / 2, jug.y + jug.h, 3);
+}
+
+function aterrizar(velocidad) {
+  jug.fuerzaAterriza = Math.min(1, velocidad / 650);
+  jug.aterriza = ATERRIZA;
+  const n = Math.round(2 + jug.fuerzaAterriza * 4);
+  levantarPolvo(jug.x + 2, jug.y + jug.h, n, -50);
+  levantarPolvo(jug.x + jug.w - 2, jug.y + jug.h, n, 50);
+}
+
+function danio() {
+  if (jug.inv > 0 || estado !== 'jugando') return;
+  if (jug.grande || jug.capa) {
+    jug.grande = false;
+    jug.capa = false;
+    jug.inv = 1.6;
+    jug.crece = 0.5;
+    sfx('dano');
+  } else {
+    morir();
+  }
+}
+
+function morir() {
+  if (estado !== 'jugando') return;
+  estado = 'muerto';
+  espera = 1.4;
+  jug.vy = -320;
+  jug.vx = 0;
+  jug.giro = false;
+  musica(null);
+  sfx('muerte');
+}
+
+function llegarMeta() {
+  if (estado !== 'jugando') return;
+  estado = 'meta';
+  espera = 1.6;
+  jug.giro = false;
+  sumar(500 + Math.floor(tiempo), jug.x + jug.w / 2, jug.y - 16);
+  musica(null);
+  sfx('nivel');
+}
+
+/* ---------------- enemigos e items ---------------- */
+
+function actualizarEnemigos(dt) {
+  for (const e of enemigos) {
+    if (!e.vivo) continue;
+    e.t += dt;
+
+    if (e.tipo === 'volador') {
+      e.x += e.vx * dt;
+      e.y = e.y0 + Math.sin(e.t * 2.2) * 34;
+      const c = Math.floor((e.vx > 0 ? e.x + e.w : e.x) / T);
+      if (solida(c, Math.floor((e.y + e.h / 2) / T)) || e.x < 0 || e.x > anchoNivel * T - e.w) {
+        e.vx *= -1;
+      }
+    } else if (e.estado === 'concha') {
+      e.vy += GRAVEDAD * dt;
+      e.vx = 0;
+      moverCaja(e, dt);
+      e.quieto = (e.quieto || 0) + dt;
+      // el bicho se cansa de esperar y vuelve a andar
+      if (e.quieto > 7) { e.estado = 'anda'; e.vx = -52; e.quieto = 0; }
+    } else {
+      e.vy += GRAVEDAD * dt;
+      e.choque = null;
+      moverCaja(e, dt);
+      if (e.choque) e.vx *= -1;
+      // nadie se tira de un borde, salvo el caparazón lanzado
+      if (e.suelo && e.estado !== 'desliza') {
+        const delante = Math.floor((e.vx > 0 ? e.x + e.w + 2 : e.x - 2) / T);
+        if (!solida(delante, Math.floor((e.y + e.h + 2) / T))) e.vx *= -1;
+      }
+      if (e.estado === 'desliza') atropellar(e);
+      if (fuera(e.y)) e.vivo = false;
+    }
+
+    chocarConJugador(e);
+  }
+}
+
+/** Un caparazón lanzado se lleva por delante a quien pille. */
+function atropellar(concha) {
+  for (const o of enemigos) {
+    if (o === concha || !o.vivo) continue;
+    if (solapan(concha, o)) matar(o, 'vuela', 200);
+  }
+}
+
+function solapan(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+function chocarConJugador(e) {
+  if (!e.vivo || estado !== 'jugando' || !solapan(jug, e)) return;
+
+  const pisando = jug.vy > 0 && jug.y + jug.h - e.y < 14;
+
+  if (e.tipo === 'coraza' && e.estado === 'concha' && !pisando) {
+    // patada: el caparazón sale disparado hacia donde miras
+    e.estado = 'desliza';
+    e.vx = jug.mira * 320;
+    e.x += jug.mira * 6;
+    sumar(100, e.x + e.w / 2, e.y - 6);
+    chispas.push({ x: e.x + e.w / 2, y: e.y + e.h / 2, t: 0 });
+    sfx('impacto');
+    return;
+  }
+
+  if (jug.giro && e.tipo !== 'volador') {
+    matar(e, 'plano');
+    jug.vy = REBOTE;
+    return;
+  }
+
+  if (pisando) {
+    if (e.tipo === 'coraza' && e.estado !== 'concha') {
+      e.estado = 'concha';
+      e.vx = 0;
+      e.quieto = 0;
+      sumar(100, e.x + e.w / 2, e.y - 6);
+      sfx('metal');
+    } else {
+      matar(e, e.tipo === 'caminante' ? 'plano' : 'vuela');
+    }
+    jug.vy = pulsado(ES_SALTO) ? REBOTE * 1.3 : REBOTE;
+    jug.aterriza = ATERRIZA * 0.6;
+    jug.fuerzaAterriza = 0.6;
+    return;
+  }
+
+  danio();
+}
+
+/**
+ * modo 'plano': se queda aplastado en el sitio un momento.
+ * modo 'vuela': sale dado la vuelta y cae fuera de la pantalla.
+ */
+function matar(e, modo = 'vuela', pts = 150) {
+  e.vivo = false;
+  sumar(pts, e.x + e.w / 2, e.y - 6);
+  sfx(modo === 'plano' ? 'impacto' : 'explosion');
+  chispas.push({ x: e.x + e.w / 2, y: e.y, t: 0 });
+  restos.push({
+    modo, e: { ...e }, t: 0,
+    vx: modo === 'vuela' ? (e.x < jug.x ? -70 : 70) : 0,
+    vy: modo === 'vuela' ? -260 : 0,
+  });
+}
+
+function actualizarItems(dt) {
+  for (const it of items) {
+    it.t += dt;
+    if (it.tipo === 'seta') {
+      it.vy += GRAVEDAD_ITEM * dt;
+      it.choque = null;
+      moverCaja(it, dt);
+      if (it.choque) it.vx *= -1;
+    } else {
+      // la pluma baja meciéndose
+      it.vy = Math.min(it.vy + GRAVEDAD_ITEM * dt, 70);
+      it.x += Math.sin(it.t * 4) * 40 * dt;
+      it.y += it.vy * dt;
+      const f = Math.floor((it.y + it.h) / T);
+      if (solida(Math.floor((it.x + it.w / 2) / T), f)) { it.y = f * T - it.h; it.vy = 0; }
+    }
+
+    if (solapan(jug, it)) {
+      it.tomado = true;
+      // crecer para la acción un instante y lo hace parpadear entre tamaños
+      if (!jug.grande) { jug.crece = 0.55; congelado = 0.55; }
+      if (it.tipo === 'seta') { jug.grande = true; sumar(300, it.x + 8, it.y - 6); }
+      else { jug.capa = true; jug.grande = true; sumar(500, it.x + 8, it.y - 6); }
+      sfx('vida');
+    }
+  }
+  items = items.filter((it) => !it.tomado && !fuera(it.y));
+}
+
+function actualizarAdornos(dt) {
+  for (const t of trozos) {
+    t.t += dt;
+    t.vy += GRAVEDAD * dt;
+    t.x += t.vx * dt;
+    t.y += t.vy * dt;
+  }
+  trozos = trozos.filter((t) => t.t < 1.4);
+  for (const c of chispas) c.t += dt;
+  chispas = chispas.filter((c) => c.t < 0.4);
+
+  for (const p of polvo) {
+    p.t += dt;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vx *= 0.9;
+    p.vy *= 0.92;
+  }
+  polvo = polvo.filter((p) => p.t < p.vida);
+
+  for (const t of textos) t.t += dt;
+  textos = textos.filter((t) => t.t < 0.8);
+
+  for (const k in golpes) {
+    golpes[k] += dt;
+    if (golpes[k] > 0.2) delete golpes[k];
+  }
+
+  for (const m of monedasSaltan) {
+    m.t += dt;
+    m.vy += GRAVEDAD * dt;
+    m.y += m.vy * dt;
+    if (m.t >= 0.5) chispas.push({ x: m.x, y: m.y, t: 0 });
+  }
+  monedasSaltan = monedasSaltan.filter((m) => m.t < 0.5);
+
+  for (const r of restos) {
+    r.t += dt;
+    if (r.modo === 'vuela') {
+      r.vy += GRAVEDAD * dt;
+      r.e.x += r.vx * dt;
+      r.e.y += r.vy * dt;
+    }
+  }
+  restos = restos.filter((r) => (r.modo === 'plano' ? r.t < 0.5 : !fuera(r.e.y)));
+}
+
+/* ---------------- partida ---------------- */
+
+function empezarPartida() {
+  puntos = 0;
+  monedas = 0;
+  vidas = 3;
+  nivelActual = 0;
+  cargarNivel(0);
+  estado = 'jugando';
+  musica('fontanero');
+  el.over.classList.remove('show');
+}
+
+function mostrar(titulo, texto, boton) {
+  el.overTitle.textContent = titulo;
+  el.overText.textContent = texto;
+  el.overBtn.textContent = boton;
+  el.over.classList.add('show');
+}
+
+function terminar(titulo, texto) {
+  estado = 'fin';
+  musica(null);
+  window.Hall && Hall.registrar('35-fontanero', puntos, {
+    unidad: 'pts', etiqueta: monedas + ' monedas',
+  });
+  mostrar(titulo, texto, 'OTRA PARTIDA');
+}
+
+/** La pausa dramática de después de morir o de llegar a la meta. */
+function tras(dt) {
+  espera -= dt;
+  if (espera > 0) {
+    if (estado === 'muerto') { jug.vy += GRAVEDAD * dt; jug.y += jug.vy * dt; }
+    return;
+  }
+
+  if (estado === 'muerto') {
+    vidas--;
+    if (vidas <= 0) {
+      terminar('GAME OVER', puntos + ' puntos y ' + monedas + ' monedas');
+      return;
+    }
+    cargarNivel(nivelActual);
+    estado = 'jugando';
+    musica('fontanero');
+    return;
+  }
+
+  nivelActual++;
+  if (nivelActual >= NIVELES.length) {
+    nivelActual = NIVELES.length - 1;
+    terminar('MUNDO COMPLETO', puntos + ' puntos y ' + monedas + ' monedas');
+    return;
+  }
+  cargarNivel(nivelActual);
+  estado = 'jugando';
+  musica('fontanero');
+}
+
+function pintarHud() {
+  el.score.textContent = puntos;
+  el.coins.textContent = monedas;
+  el.lives.textContent = vidas;
+  el.time.textContent = Math.max(0, Math.ceil(tiempo));
+}
+
+/* ---------------- dibujo ---------------- */
+
+function fondo() {
+  const nivel = NIVELES[nivelActual];
+  ctx.fillStyle = nivel.cielo;
+  ctx.fillRect(0, 0, VISTA_W, VISTA_H);
+
+  // colinas de fondo, a media velocidad de la cámara
+  const desp = -(camX * 0.4) % 240;
+  ctx.fillStyle = 'rgba(0,0,0,.18)';
+  for (let i = -1; i < 4; i++) {
+    const x = desp + i * 240;
+    ctx.beginPath();
+    ctx.arc(x + 60, VISTA_H - 40, 70, Math.PI, 0);
+    ctx.arc(x + 170, VISTA_H - 40, 50, Math.PI, 0);
+    ctx.fill();
+  }
+
+  // nubes, aún más lentas
+  ctx.fillStyle = 'rgba(255,255,255,.14)';
+  const lejos = -(camX * 0.2) % 320;
+  for (let i = -1; i < 4; i++) {
+    const x = lejos + i * 320;
+    ctx.fillRect(x + 40, 50, 60, 12);
+    ctx.fillRect(x + 55, 40, 34, 12);
+    ctx.fillRect(x + 210, 84, 44, 10);
+  }
+}
+
+function pintarBaldosa(ch, x, y) {
+  const nivel = NIVELES[nivelActual];
+
+  if (ch === '#') {
+    ctx.fillStyle = nivel.tierra;
+    ctx.fillRect(x, y, T, T);
+    ctx.fillStyle = 'rgba(0,0,0,.22)';
+    ctx.fillRect(x, y + 14, T, 2);
+    ctx.fillRect(x + 9, y, 2, 14);
+    return;
+  }
+  if (ch === '=') {
+    ctx.fillStyle = '#8a8fb0';
+    ctx.fillRect(x, y, T, T);
+    ctx.fillStyle = '#5c6180';
+    ctx.fillRect(x, y + T - 5, T, 5);
+    ctx.fillStyle = 'rgba(255,255,255,.25)';
+    ctx.fillRect(x, y, T, 3);
+    return;
+  }
+  if (ch === 'O') {
+    ctx.fillStyle = '#2fa14a';
+    ctx.fillRect(x, y, T, T);
+    ctx.fillStyle = '#1d6e33';
+    ctx.fillRect(x + T - 5, y, 5, T);
+    ctx.fillStyle = 'rgba(255,255,255,.22)';
+    ctx.fillRect(x + 3, y, 4, T);
+    return;
+  }
+  if (ch === 'B') {
+    ctx.fillStyle = '#c1663a';
+    ctx.fillRect(x, y, T, T);
+    ctx.strokeStyle = 'rgba(0,0,0,.35)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(x + 1, y + 1, T - 2, 8);
+    ctx.strokeRect(x + 1, y + 11, T - 2, 8);
+    return;
+  }
+  if (ch === 'u') {
+    ctx.fillStyle = '#7a5a3a';
+    ctx.fillRect(x, y, T, T);
+    ctx.fillStyle = 'rgba(0,0,0,.3)';
+    ctx.fillRect(x + 2, y + 2, T - 4, T - 4);
+    return;
+  }
+  if (ch === '?' || ch === 'M' || ch === 'F') {
+    const brillo = 0.5 + Math.sin(reloj * 4 + x) * 0.5;
+    ctx.fillStyle = ch === '?' ? '#e0a020' : '#e05a20';
+    ctx.fillRect(x, y, T, T);
+    ctx.fillStyle = 'rgba(255,255,255,' + (0.2 + brillo * 0.3) + ')';
+    ctx.fillRect(x + 2, y + 2, T - 4, T - 4);
+    ctx.fillStyle = '#3a2408';
+    ctx.font = 'bold 13px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(ch === '?' ? '?' : ch === 'M' ? 'S' : 'P', x + T / 2, y + T / 2 + 1);
+    return;
+  }
+  if (ch === '^') {
+    ctx.fillStyle = '#c9ccdd';
+    for (let i = 0; i < 2; i++) {
+      ctx.beginPath();
+      ctx.moveTo(x + i * 10, y + T);
+      ctx.lineTo(x + i * 10 + 5, y + 6);
+      ctx.lineTo(x + i * 10 + 10, y + T);
+      ctx.fill();
+    }
+    return;
+  }
+  if (ch === 'C') {
+    const p = Math.abs(Math.sin(reloj * 5 + x * 0.1));
+    ctx.fillStyle = '#ffd24a';
+    ctx.beginPath();
+    ctx.ellipse(x + T / 2, y + T / 2, 3 + p * 3, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.7)';
+    ctx.fillRect(x + T / 2 - 1, y + 6, 2, 8);
+    return;
+  }
+  if (ch === 'G') {
+    ctx.fillStyle = '#d8d8e8';
+    ctx.fillRect(x + 8, y - T * 4, 4, T * 5);
+    ctx.fillStyle = '#35f0d0';
+    const onda = Math.sin(reloj * 6) * 3;
+    ctx.beginPath();
+    ctx.moveTo(x + 12, y - T * 4);
+    ctx.lineTo(x + 34 + onda, y - T * 4 + 9);
+    ctx.lineTo(x + 12, y - T * 4 + 18);
+    ctx.fill();
+  }
+}
+
+function dibujarMapa() {
+  const c0 = Math.max(0, Math.floor(camX / T) - 1);
+  const c1 = Math.min(anchoNivel - 1, Math.floor((camX + VISTA_W) / T) + 1);
+  for (let f = 0; f < FILAS; f++) {
+    for (let c = c0; c <= c1; c++) {
+      const ch = mapa[f][c];
+      if (ch === ' ') continue;
+      const g = golpes[c + ',' + f];
+      const alza = g === undefined ? 0 : Math.round(Math.sin(Math.min(1, g / 0.2) * Math.PI) * 6);
+      pintarBaldosa(ch, c * T - camX, f * T - alza);
+    }
+  }
+}
+
+/* ---------------- el fontanero ----------------
+   Se dibuja de perfil mirando a la derecha con el origen entre los pies.
+   Un espejo lo gira hacia la izquierda, una escala le da el estirón al
+   subir y el aplastón al caer, y cada postura no es más que un juego de
+   ángulos para piernas y brazos. */
+
+const ROPA = {
+  gorra: '#d83a3a', gorraSombra: '#9e2424',
+  piel: '#f0c090', pelo: '#3a2408',
+  camisa: '#d83a3a', camisaSombra: '#9e2424',
+  peto: '#2f6ad0', petoSombra: '#224c9a', boton: '#ffd24a',
+  guante: '#ffffff', guanteSombra: '#c9c9dc', bota: '#4a2a12',
+};
+
+/** Ángulos en radianes: positivo lleva la extremidad hacia delante. */
+function postura() {
+  const velo = Math.min(1, Math.abs(jug.vx) / VEL_MAX);
+
+  if (estado === 'muerto') return { piernas: [0.5, -0.5], brazos: [2.7, -2.7], cuerpo: 0, bote: 0, ojos: 'cruz' };
+  if (estado === 'meta') {
+    return { piernas: [0.15, -0.15], brazos: [2.9, -0.4], cuerpo: 0, bote: -Math.round(Math.abs(Math.sin(reloj * 9)) * 5) };
+  }
+  if (jug.planeando) return { piernas: [-0.7, -1], brazos: [1.6, 1.3], cuerpo: 0.45, bote: 0 };
+  if (!jug.suelo) {
+    if (jug.vy < 0) return { piernas: [1.1, -0.35], brazos: [2.6, -0.7], cuerpo: 0, bote: 0 };
+    return { piernas: [0.45, -0.45], brazos: [1.5, -1.3], cuerpo: 0, bote: 0 };
+  }
+  if (jug.derrape) return { piernas: [0.75, 0.2], brazos: [-0.9, -1.2], cuerpo: -0.22, bote: 0 };
+  if (Math.abs(jug.vx) > 8) {
+    const s = Math.sin(jug.anim);
+    const amp = 0.45 + velo * 0.5;
+    const braceo = 0.5 + velo * 0.8;
+    return {
+      piernas: [s * amp, -s * amp],
+      brazos: [-s * braceo, s * braceo],
+      cuerpo: velo * 0.12,
+      // la cadera sube cuando las piernas se cruzan
+      bote: -Math.round(Math.abs(Math.cos(jug.anim)) * 1.5),
+    };
+  }
+  // quieto: respira
+  return { piernas: [0.06, -0.06], brazos: [0.12, -0.12], cuerpo: 0, bote: Math.sin(reloj * 3) > 0.6 ? 1 : 0 };
+}
+
+function pierna(px, py, ang, largo, color) {
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.rotate(-ang);
+  ctx.fillStyle = color;
+  ctx.fillRect(-2, 0, 4, largo - 3);
+  ctx.fillStyle = ROPA.bota;
+  ctx.fillRect(-3, largo - 3, 7, 3);
+  ctx.restore();
+}
+
+function brazo(px, py, ang, largo, color, guante) {
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.rotate(-ang);
+  ctx.fillStyle = color;
+  ctx.fillRect(-1.5, 0, 3, largo - 2);
+  ctx.fillStyle = guante;
+  ctx.fillRect(-2, largo - 3, 4, 4);
+  ctx.restore();
+}
+
+function dibujarCapa(hombro, cadera) {
+  const velo = Math.min(1, Math.abs(jug.vx) / VEL_MAX);
+  const ondea = Math.sin(reloj * 16) * (1 + velo * 2);
+  let px, py;
+  if (jug.planeando) { px = -20; py = hombro + 3 + ondea; }
+  else if (!jug.suelo && jug.vy < 0) { px = -6 - velo * 4; py = cadera + 8; }     // sube: la capa cuelga
+  else if (!jug.suelo) { px = -10 - velo * 6; py = hombro - 6 + ondea; }          // cae: la capa se levanta
+  else { px = -5 - velo * 12; py = cadera + 1 - velo * 7 + ondea * velo; }
+
+  ctx.fillStyle = '#ffb020';
+  ctx.beginPath();
+  ctx.moveTo(-3, hombro);
+  ctx.lineTo(px, py);
+  ctx.lineTo(px + 4, py + 3);
+  ctx.lineTo(1, hombro + 2);
+  ctx.fill();
+  ctx.fillStyle = '#c47a10';
+  ctx.beginPath();
+  ctx.moveTo(-3, hombro);
+  ctx.lineTo(px, py);
+  ctx.lineTo(-1, hombro + 1);
+  ctx.fill();
+}
+
+function dibujarFontanero() {
+  // estela del salto giratorio
+  for (let i = 0; i < jug.estela.length; i += 2) {
+    const s = jug.estela[i];
+    ctx.fillStyle = 'rgba(255,176,32,' + (0.3 * (1 - s.t / 0.18)) + ')';
+    ctx.beginPath();
+    ctx.ellipse(s.x - camX + jug.w / 2, s.y + s.h / 2, jug.w / 2 + 2, s.h / 2 + 2, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // parpadea mientras es intocable
+  if (jug.inv > 0 && estado === 'jugando' && Math.floor(jug.inv * 12) % 2) return;
+
+  // al crecer o encoger alterna entre los dos tamaños
+  let grande = jug.grande;
+  if (jug.crece > 0 && Math.floor(jug.crece * 14) % 2) grande = !grande;
+
+  const pose = postura();
+  const largoPierna = grande ? 8 : 5;
+  const tronco = grande ? 10 : 6;
+  const cabeza = grande ? 8 : 7;
+  const largoBrazo = grande ? 8 : 6;
+
+  let sx = 1, sy = 1;
+  if (jug.aterriza > 0) {
+    const k = (jug.aterriza / ATERRIZA) * jug.fuerzaAterriza;
+    sx = 1 + k * 0.3;
+    sy = 1 - k * 0.25;
+  } else if (!jug.suelo && jug.vy < -250 && estado === 'jugando') {
+    sx = 0.88;
+    sy = 1.12;
+  }
+  // el salto giratorio se lee como un giro sobre sí mismo
+  const vuelta = jug.giro && Math.cos(reloj * 22) < 0 ? -1 : 1;
+
+  ctx.save();
+  ctx.translate(Math.round(jug.x - camX + jug.w / 2), Math.round(jug.y + jug.h) + pose.bote);
+  ctx.scale(sx * jug.mira * vuelta, sy);
+  ctx.rotate(pose.cuerpo);
+
+  const cadera = -largoPierna;
+  const hombro = cadera - tronco + 2;
+  const coronilla = cadera - tronco - cabeza;
+
+  if (jug.capa) dibujarCapa(hombro, cadera);
+
+  // lo de atrás va más oscuro y se pinta primero
+  pierna(-1, cadera, pose.piernas[1], largoPierna, ROPA.petoSombra);
+  brazo(-2, hombro, pose.brazos[1], largoBrazo, ROPA.camisaSombra, ROPA.guanteSombra);
+  pierna(2, cadera, pose.piernas[0], largoPierna, ROPA.peto);
+
+  // tronco: camisa arriba y peto abajo con tirantes y botones
+  const alturaPeto = Math.ceil(tronco * 0.6);
+  ctx.fillStyle = ROPA.camisa;
+  ctx.fillRect(-5, cadera - tronco, 10, tronco);
+  ctx.fillStyle = ROPA.peto;
+  ctx.fillRect(-5, cadera - alturaPeto, 10, alturaPeto + 1);
+  ctx.fillRect(-4, cadera - tronco + 1, 2, tronco - alturaPeto);
+  ctx.fillRect(2, cadera - tronco + 1, 2, tronco - alturaPeto);
+  ctx.fillStyle = ROPA.boton;
+  ctx.fillRect(-4, cadera - alturaPeto, 2, 2);
+  ctx.fillRect(2, cadera - alturaPeto, 2, 2);
+
+  // cabeza
+  ctx.fillStyle = ROPA.piel;
+  ctx.fillRect(-4, coronilla, 9, cabeza);
+  ctx.fillRect(4, coronilla + 3, 3, 3);                 // nariz
+  ctx.fillStyle = ROPA.pelo;
+  ctx.fillRect(-5, coronilla + 1, 3, cabeza - 3);       // nuca
+  ctx.fillRect(1, coronilla + cabeza - 2, 6, 2);        // bigote
+  if (pose.ojos === 'cruz') {
+    ctx.fillRect(1, coronilla + 3, 3, 1);
+    ctx.fillRect(2, coronilla + 2, 1, 3);
+  } else {
+    const parpadea = estado === 'jugando' && reloj % 3.4 < 0.12;
+    ctx.fillRect(2, coronilla + 2, 2, parpadea ? 1 : 3);
+  }
+  ctx.fillStyle = ROPA.gorra;
+  ctx.fillRect(-5, coronilla - 3, 10, 4);
+  ctx.fillRect(3, coronilla, 5, 2);                     // visera
+  ctx.fillStyle = ROPA.gorraSombra;
+  ctx.fillRect(-5, coronilla, 3, 1);
+
+  brazo(1, hombro, pose.brazos[0], largoBrazo, ROPA.camisa, ROPA.guante);
+
+  ctx.restore();
+}
+
+function dibujarEnemigos() {
+  for (const e of enemigos) {
+    if (!e.vivo) continue;
+    const x = Math.round(e.x - camX), y = Math.round(e.y);
+    if (x < -40 || x > VISTA_W + 40) continue;
+    dibujarEnemigo(e, x, y);
+  }
+}
+
+/** Aplastados en el sitio o dados la vuelta cayendo. */
+function dibujarRestos() {
+  for (const r of restos) {
+    const x = Math.round(r.e.x - camX), y = Math.round(r.e.y);
+    const pie = y + r.e.h, centro = y + r.e.h / 2;
+    ctx.save();
+    if (r.modo === 'plano') {
+      ctx.globalAlpha = Math.max(0, 1 - Math.max(0, r.t - 0.3) / 0.2);
+      const cx = x + r.e.w / 2;
+      ctx.translate(cx, pie);
+      ctx.scale(1.15, 0.35);
+      ctx.translate(-cx, -pie);
+    } else {
+      ctx.translate(0, centro);
+      ctx.scale(1, -1);
+      ctx.translate(0, -centro);
+    }
+    dibujarEnemigo(r.e, x, y);
+    ctx.restore();
+  }
+}
+
+function dibujarEnemigo(e, x, y) {
+  {
+    if (e.tipo === 'volador') {
+      const ala = Math.sin(e.t * 14) * 5;
+      ctx.fillStyle = '#7c6bff';
+      ctx.beginPath();
+      ctx.ellipse(x + 9, y + 7, 8, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#b0a4ff';
+      ctx.beginPath();
+      ctx.moveTo(x + 4, y + 6); ctx.lineTo(x - 6, y + 2 + ala); ctx.lineTo(x + 4, y + 10);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(x + 14, y + 6); ctx.lineTo(x + 24, y + 2 - ala); ctx.lineTo(x + 14, y + 10);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(x + (e.vx < 0 ? 5 : 11), y + 5, 3, 3);
+      return;
+    }
+
+    if (e.tipo === 'coraza') {
+      const concha = e.estado !== 'anda';
+      ctx.fillStyle = '#2fa14a';
+      ctx.beginPath();
+      ctx.ellipse(x + 9, y + (concha ? 11 : 9), 9, concha ? 7 : 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#1d6e33';
+      ctx.beginPath();
+      ctx.ellipse(x + 9, y + (concha ? 11 : 9), 5, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      if (!concha) {
+        const paso = Math.sin(e.t * 10) > 0 ? 1 : 0;
+        ctx.fillStyle = '#f0d060';            // cabeza y patas fuera, a pasitos
+        ctx.fillRect(x + (e.vx < 0 ? -2 : 15), y + paso, 6, 7);
+        ctx.fillRect(x + 2, y + 16 - paso, 5, 3 + paso);
+        ctx.fillRect(x + 11, y + 15 + paso, 5, 4 - paso);
+        ctx.fillStyle = '#3a2408';
+        ctx.fillRect(x + (e.vx < 0 ? -1 : 18), y + 2, 2, 2);
+      } else if (e.estado === 'desliza') {
+        ctx.strokeStyle = 'rgba(255,255,255,.55)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(x + (e.vx > 0 ? -6 : 24), y + 6);
+        ctx.lineTo(x + (e.vx > 0 ? 0 : 18), y + 6);
+        ctx.stroke();
+      }
+      return;
+    }
+
+    // caminante: una seta con patas
+    const paso = Math.sin(e.t * 9) * 2;
+    ctx.fillStyle = '#8a4a22';
+    ctx.fillRect(x + 2, y + 12, 5, 4 + paso);
+    ctx.fillRect(x + 11, y + 12, 5, 4 - paso);
+    ctx.fillStyle = '#c1663a';
+    ctx.beginPath();
+    ctx.ellipse(x + 9, y + 8, 9, 8, 0, Math.PI, 0);
+    ctx.fill();
+    ctx.fillRect(x + 1, y + 8, 16, 5);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(x + 4, y + 7, 3, 4);
+    ctx.fillRect(x + 11, y + 7, 3, 4);
+    ctx.fillStyle = '#3a2408';
+    ctx.fillRect(x + (e.vx < 0 ? 4 : 6), y + 8, 2, 3);
+    ctx.fillRect(x + (e.vx < 0 ? 11 : 13), y + 8, 2, 3);
+  }
+}
+
+function dibujarItems() {
+  for (const it of items) {
+    const x = Math.round(it.x - camX), y = Math.round(it.y);
+    if (it.tipo === 'seta') {
+      ctx.fillStyle = '#f0e0c0';
+      ctx.fillRect(x + 4, y + 9, 8, 7);
+      ctx.fillStyle = '#e03a3a';
+      ctx.beginPath();
+      ctx.ellipse(x + 8, y + 9, 8, 7, 0, Math.PI, 0);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(x + 3, y + 4, 4, 3);
+      ctx.fillRect(x + 10, y + 5, 3, 3);
+    } else {
+      ctx.fillStyle = '#ffb020';
+      ctx.beginPath();
+      ctx.moveTo(x + 8, y);
+      ctx.lineTo(x + 14, y + 14);
+      ctx.lineTo(x + 8, y + 16);
+      ctx.lineTo(x + 2, y + 14);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.6)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x + 8, y + 2);
+      ctx.lineTo(x + 8, y + 15);
+      ctx.stroke();
+    }
+  }
+}
+
+function dibujarPolvo() {
+  for (const p of polvo) {
+    const k = p.t / p.vida;
+    ctx.fillStyle = 'rgba(240,236,255,' + (0.65 * (1 - k)) + ')';
+    ctx.beginPath();
+    ctx.arc(p.x - camX, p.y, p.r * (0.7 + k), 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function dibujarMonedasSaltan() {
+  for (const m of monedasSaltan) {
+    // gira sobre sí misma: el ancho de la elipse sigue un coseno
+    const ancho = Math.abs(Math.cos(m.t * 18)) * 5 + 1;
+    ctx.fillStyle = '#ffd24a';
+    ctx.beginPath();
+    ctx.ellipse(m.x - camX, m.y, ancho, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,.7)';
+    ctx.fillRect(m.x - camX - 1, m.y - 5, 2, 8);
+  }
+}
+
+function dibujarTextos() {
+  ctx.font = '8px "Press Start 2P", monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'alphabetic';
+  for (const t of textos) {
+    const a = 1 - t.t / 0.8;
+    const x = Math.round(t.x - camX), y = Math.round(t.y - t.t * 40);
+    ctx.fillStyle = 'rgba(0,0,0,' + a * 0.6 + ')';
+    ctx.fillText(t.txt, x + 1, y + 1);
+    ctx.fillStyle = 'rgba(255,255,255,' + a + ')';
+    ctx.fillText(t.txt, x, y);
+  }
+}
+
+function dibujarAdornos() {
+  ctx.fillStyle = '#c1663a';
+  for (const t of trozos) ctx.fillRect(Math.round(t.x - camX), Math.round(t.y), 7, 7);
+
+  for (const c of chispas) {
+    const r = 6 + c.t * 40;
+    ctx.strokeStyle = 'rgba(255,255,255,' + (1 - c.t / 0.4) + ')';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(c.x - camX, c.y, r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+function dibujar() {
+  fondo();
+  dibujarMonedasSaltan();
+  dibujarMapa();
+  dibujarItems();
+  dibujarEnemigos();
+  dibujarRestos();
+  dibujarPolvo();
+  if (estado !== 'menu') dibujarFontanero();
+  dibujarAdornos();
+  dibujarTextos();
+
+  // cuando el tiempo se acaba, la pantalla avisa
+  if (estado === 'jugando' && tiempo < 60) {
+    ctx.fillStyle = 'rgba(255,46,136,' + (0.12 + Math.sin(reloj * 8) * 0.08) + ')';
+    ctx.fillRect(0, 0, VISTA_W, VISTA_H);
+  }
+}
+
+/* ---------------- bucle ---------------- */
+
+let anterior = performance.now();
+
+function bucle(t) {
+  const dt = Math.min((t - anterior) / 1000, 1 / 30);
+  anterior = t;
+  reloj += dt;
+
+  if (estado === 'jugando' && congelado > 0) {
+    // al crecer, el mundo espera a que termine el parpadeo
+    congelado -= dt;
+    jug.crece -= dt;
+    actualizarAdornos(dt);
+  } else if (estado === 'jugando') {
+    actualizarJugador(dt);
+    actualizarEnemigos(dt);
+    actualizarItems(dt);
+    actualizarAdornos(dt);
+
+    tiempo -= dt * 2.5;
+    if (tiempo <= 0) { tiempo = 0; morir(); }
+
+    // la cámara sigue al fontanero con suavidad y deja ver lo que viene
+    const objetivo = jug.x + jug.w / 2 - VISTA_W / 2 + jug.mira * 50;
+    camSuave += (objetivo - camSuave) * Math.min(1, dt * 5);
+    camSuave = Math.max(0, Math.min(anchoNivel * T - VISTA_W, camSuave));
+    camX = Math.round(camSuave);
+    pintarHud();
+  } else if (estado === 'muerto' || estado === 'meta') {
+    actualizarAdornos(dt);
+    tras(dt);
+    pintarHud();
+  }
+
+  saltoPedido = false;
+  giroPedido = false;
+
+  dibujar();
+  requestAnimationFrame(bucle);
+}
+
+el.overBtn.addEventListener('click', () => {
+  if (estado === 'pausa') {
+    estado = 'jugando';
+    musica('fontanero');
+    el.over.classList.remove('show');
+    return;
+  }
+  empezarPartida();
+});
+
+cargarNivel(0);
+mostrar('MUNDO FONTANERO', 'Tres mundos, una gorra y muchas setas', 'EMPEZAR');
+requestAnimationFrame(bucle);
+</script>
+
+</body>
+</html>

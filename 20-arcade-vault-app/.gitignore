@@ -1,0 +1,20 @@
+node_modules/
+.env
+.env.local
+
+# base de datos local del marcador (con las cuentas: nunca al repositorio)
+api/dev.db
+api/dev.db-journal
+api/prisma/dev.db
+api/prisma/dev.db-journal
+*.tsbuildinfo
+api/src/generated/
+
+# compilados
+api/dist/
+web/.next/
+web/out/
+
+# generado por next dev
+web/AGENTS.md
+web/CLAUDE.md

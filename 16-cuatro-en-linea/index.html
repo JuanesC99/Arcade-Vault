@@ -101,6 +101,7 @@ canvas{display:block;cursor:pointer}
   <a class="back" href="../04-arcade-vault/index.html">&lt; VOLVER AL SALÓN</a>
 </div>
 
+<script src="../04-arcade-vault/cuentas.js"></script>
 <script src="../04-arcade-vault/salon.js"></script>
 <script src="../04-arcade-vault/pantalla.js"></script>
 <script>window.MANDO = { acciones: [{ k:'r', txt:'NUEVA' }] };</script>
@@ -282,6 +283,16 @@ function terminar(quien){
   setTimeout(() => el.over.classList.add('show'), 900);
 }
 
+/* Deja la ficha en su hueco y pasa el turno. */
+function posar(){
+  if(!cayendo) return;
+  const { col, filaDestino, jugador } = cayendo;
+  t[filaDestino][col] = jugador;
+  fichas++;
+  cayendo = null;
+  tras(jugador);
+}
+
 function soltar(col){
   if(estado !== 'jugando' || cayendo) return;
   const f = huecoLibre(t, col);
@@ -291,21 +302,22 @@ function soltar(col){
   // animación de caída: la ficha baja desde arriba hasta su hueco
   cayendo = { col, filaDestino: f, y: -CELDA, jugador: quien };
 
+  // Chrome congela requestAnimationFrame en pestañas ocultas: sin esto la
+  // ficha se quedaba a medio caer y `cayendo` bloqueaba el tablero para
+  // siempre. Fuera de vista no hay animación que ver, así que la posamos ya.
+  if(document.hidden) return posar();
+
   const paso = () => {
     if(!cayendo) return;
     cayendo.y += 46;
-    const destinoY = cayendo.filaDestino * CELDA;
-    if(cayendo.y >= destinoY){
-      t[f][col] = quien;
-      fichas++;
-      cayendo = null;
-      tras(quien);
-      return;
-    }
+    if(cayendo.y >= cayendo.filaDestino * CELDA) return posar();
     requestAnimationFrame(paso);
   };
   requestAnimationFrame(paso);
 }
+
+// Si la pestaña se esconde con una ficha en el aire, la resolvemos al vuelo.
+document.addEventListener('visibilitychange', () => { if(document.hidden) posar(); });
 
 function tras(quien){
   const linea = lineaGanadora(t, quien);

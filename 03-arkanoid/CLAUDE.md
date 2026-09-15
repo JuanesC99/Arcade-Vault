@@ -16,8 +16,8 @@ No hay paso de build ni servidor requerido. Para probar cambios: `open index.htm
 
 | Archivo | Rol |
 |---|---|
-| `index.html` | Punto de entrada; carga scripts y el `<canvas>` de 800×600 px |
-| `game.js` | Toda la lógica del juego (estado, loop, físicas, render, HUD, overlays) |
+| `index.html` | Punto de entrada; panel lateral del salón, scripts y el `<canvas>` de 800×600 px |
+| `game.js` | Toda la lógica del juego (estado, loop, físicas, render, panel, overlays) |
 | `levels.js` | Define `LEVELS`: array de 10 niveles con `blocks[]` y `speed` |
 | `assets/spritesheet.js` | Carga el spritesheet y expone helpers de dibujo |
 | `scripts/make_sounds.py` | Sintetiza los efectos de sonido de la spec 04 (numpy + ffmpeg) |
@@ -113,5 +113,6 @@ La referencia completa está en `.agents/skills/spec/template.md`.
 | 04 | `powerups-y-mas-niveles` | Implementado |
 | 05 | `bloques-resistentes` | Implementado |
 | 06 | `continuar-con-cuenta-atras` | Implementado |
+| 07 | `panel-de-salon` | Implementado |
 
-El próximo spec será `07-...`.
+El próximo spec será `08-...`.

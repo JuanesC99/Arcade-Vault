@@ -19,6 +19,7 @@
   --neon:#ff2e88;
   --volt:#35f0d0;
   --amber:#ffb020;
+  --violeta:#7b5cff;
   --pixel:'Press Start 2P', monospace;
   --body:'Chakra Petch', 'Trebuchet MS', sans-serif;
 }
@@ -148,6 +149,34 @@ body::after{
   padding:9px 13px;
   white-space:nowrap;
 }
+/* ---------- ficha de sesión en la barra ---------- */
+.sesion{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  font-family:var(--pixel);
+  font-size:9px;
+  color:var(--volt);
+  border:1px solid var(--edge);
+  background:var(--panel);
+  padding:9px 13px;
+  white-space:nowrap;
+  text-decoration:none;
+  transition:border-color .18s, color .18s;
+}
+.sesion:hover{border-color:var(--volt);color:var(--ink)}
+.sesion .avatar{
+  width:15px;height:15px;
+  display:grid;
+  place-items:center;
+  background:var(--neon);
+  color:#12000a;
+  font-size:8px;
+  line-height:1;
+}
+.sesion.fuera{color:var(--dim)}
+.sesion.fuera .avatar{background:var(--edge);color:var(--dim)}
+
 .coin{
   width:13px;height:13px;
   border-radius:50%;
@@ -220,6 +249,173 @@ body::after{
   animation:rise .55s cubic-bezier(.2,.7,.3,1) forwards;
 }
 @keyframes rise{to{opacity:1;transform:none}}
+
+/* ---------- portada con muñecos ---------- */
+.portada{
+  position:relative;
+  isolation:isolate;
+  margin-bottom:46px;
+  padding:64px 34px 54px;
+  border:1px solid var(--edge);
+  background:
+    radial-gradient(120% 140% at 12% 0%, rgba(123,92,255,.30), transparent 58%),
+    radial-gradient(90% 120% at 92% 12%, rgba(53,240,208,.18), transparent 60%),
+    linear-gradient(180deg, #100c22 0%, #0a0814 100%);
+  overflow:hidden;
+}
+/* borde de neón que respira en el canto superior */
+.portada::before{
+  content:'';
+  position:absolute;
+  top:0;left:0;right:0;
+  height:3px;
+  background:linear-gradient(to right, var(--neon), var(--violeta), var(--volt), var(--amber), var(--neon));
+  background-size:260% 100%;
+  animation:desfile 9s linear infinite;
+}
+@keyframes desfile{to{background-position:260% 0}}
+/* suelo de rejilla, como el de una recreativa vista de frente */
+.portada::after{
+  content:'';
+  position:absolute;
+  left:-10%;right:-10%;bottom:-42%;
+  height:70%;
+  z-index:-2;
+  background:
+    repeating-linear-gradient(to right, rgba(255,46,136,.22) 0 1px, transparent 1px 58px),
+    repeating-linear-gradient(to bottom, rgba(255,46,136,.22) 0 1px, transparent 1px 34px);
+  transform:perspective(300px) rotateX(66deg);
+  transform-origin:bottom center;
+  opacity:.55;
+  pointer-events:none;
+}
+
+.portada-texto{position:relative;z-index:2;max-width:600px}
+.portada .marca{
+  font-family:var(--pixel);
+  font-size:clamp(20px, 5vw, 40px);
+  line-height:1.35;
+  letter-spacing:1px;
+  margin-bottom:18px;
+  text-shadow:3px 3px 0 var(--neon), 6px 6px 0 rgba(53,240,208,.5);
+}
+.portada .marca em{color:var(--volt);font-style:normal}
+.portada .lema{
+  font-size:17px;
+  color:var(--ink);
+  max-width:44ch;
+  margin-bottom:8px;
+}
+.portada .letra-chica{color:var(--dim);font-size:13.5px;max-width:46ch;margin-bottom:26px}
+.portada-botones{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:34px}
+
+.contadores{
+  position:relative;
+  z-index:2;
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+}
+.contador{
+  border:1px solid var(--edge);
+  background:rgba(7,6,13,.55);
+  backdrop-filter:blur(2px);
+  padding:11px 15px;
+  min-width:118px;
+}
+.contador b{
+  display:block;
+  font-family:var(--pixel);
+  font-size:15px;
+  color:var(--amber);
+  margin-bottom:5px;
+}
+.contador span{font-size:11px;color:var(--dim);letter-spacing:1.4px;text-transform:uppercase}
+
+/* los muñecos que rondan por detrás */
+.munecos{
+  position:absolute;
+  inset:0;
+  z-index:-1;
+  pointer-events:none;
+  overflow:hidden;
+}
+.muneco{
+  position:absolute;
+  left:var(--x);
+  top:var(--y);
+  width:var(--ancho);
+  animation:deriva 14s ease-in-out infinite alternate;
+  will-change:transform;
+}
+.muneco svg{
+  display:block;
+  width:100%;
+  height:auto;
+  transform:rotate(var(--giro,0deg));
+  animation:brinco var(--salto,1.6s) steps(2, jump-none) infinite alternate;
+  filter:drop-shadow(0 0 12px rgba(53,240,208,.35));
+}
+.muneco.lejos{opacity:.34;filter:blur(1px)}
+.muneco.medio{opacity:.6}
+.muneco.cerca{opacity:.9}
+@keyframes deriva{
+  from{transform:translate3d(0,0,0)}
+  to{transform:translate3d(26px,-18px,0)}
+}
+@keyframes brinco{
+  from{transform:rotate(var(--giro,0deg)) translateY(0)}
+  to{transform:rotate(var(--giro,0deg)) translateY(-6px)}
+}
+
+@media (prefers-reduced-motion: reduce){
+  .muneco, .muneco svg, .portada::before{animation:none}
+}
+
+/* ---------- acerca de ---------- */
+.acerca{margin-top:58px}
+.acerca-caja{
+  border:1px solid var(--edge);
+  background:
+    radial-gradient(90% 130% at 100% 0%, rgba(123,92,255,.20), transparent 60%),
+    linear-gradient(180deg, var(--panel) 0%, var(--panel2) 100%);
+  padding:34px 30px;
+  display:grid;
+  grid-template-columns:1.25fr 1fr;
+  gap:38px;
+  align-items:start;
+}
+.acerca-caja p{color:var(--dim);font-size:14.5px;margin-bottom:14px}
+.acerca-caja p b{color:var(--ink);font-weight:600}
+.acerca-caja p:last-child{margin-bottom:0}
+.acerca h3{
+  font-family:var(--pixel);
+  font-size:12px;
+  line-height:1.7;
+  margin-bottom:16px;
+  color:var(--ink);
+  text-shadow:2px 2px 0 rgba(255,46,136,.45);
+}
+.fichas-tecnicas{display:flex;flex-direction:column;gap:1px;background:var(--edge);border:1px solid var(--edge)}
+.ficha-tec{
+  display:flex;
+  justify-content:space-between;
+  align-items:baseline;
+  gap:14px;
+  background:var(--void);
+  padding:12px 14px;
+}
+.ficha-tec dt{font-size:11px;color:var(--dim);letter-spacing:1.3px;text-transform:uppercase}
+.ficha-tec dd{font-family:var(--pixel);font-size:9px;color:var(--volt);text-align:right}
+.acerca-firma{
+  margin-top:18px;
+  display:flex;
+  align-items:center;
+  gap:12px;
+  color:var(--dim);
+  font-size:12.5px;
+}
+.acerca-firma .sello{width:34px;flex:none}
 
 /* ---------- destacado ---------- */
 .hero{
@@ -602,6 +798,9 @@ footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
   text-transform:uppercase;
 }
 .hof-cabecera input:focus{outline:0;border-color:var(--volt)}
+.hof-cabecera small{font-size:12px;color:var(--dim)}
+.hof-cabecera small a{color:var(--volt);text-decoration:none;border-bottom:1px solid transparent}
+.hof-cabecera small a:hover{border-bottom-color:var(--volt)}
 #borrarHof{
   font-family:var(--pixel);
   font-size:9px;
@@ -681,12 +880,31 @@ footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
   radial-gradient(circle at 50% 44%, rgba(255,176,32,.85) 0 15%, transparent 15%),
   linear-gradient(rgba(255,46,136,.55) 0 6px, transparent 6px 30px),
   linear-gradient(#2b2740,#12101f)}
+.a18{background-image:
+  radial-gradient(circle at 78% 26%, rgba(255,255,255,.5) 0 6%, transparent 6%),
+  repeating-linear-gradient(90deg, rgba(193,102,58,.9) 0 10px, rgba(122,63,34,.9) 10px 20px),
+  linear-gradient(rgba(74,168,224,0) 62%, rgba(184,86,47,1) 62%),
+  linear-gradient(#4aa8e0,#8ed0f0)}
 
 @media(max-width:980px){
   .hero{grid-template-columns:1fr}
+  .acerca-caja{grid-template-columns:1fr;gap:26px;padding:26px 20px}
+  .portada{padding:46px 20px 40px}
+  .muneco.lejos{display:none}
   .columns{grid-template-columns:1fr}
   .grid{grid-template-columns:1fr}
-  .nav{display:none}
+  /* la barra no desaparece: se convierte en una tira que se desliza */
+  .nav{
+    order:3;
+    flex:1 0 100%;
+    gap:14px;
+    overflow-x:auto;
+    scrollbar-width:none;
+    padding-bottom:2px;
+  }
+  .nav::-webkit-scrollbar{display:none}
+  .nav a{font-size:11px;letter-spacing:1.2px;white-space:nowrap}
+  .muneco{width:calc(var(--ancho) * .72)}
   /* sin esto, las fichas del catálogo se niegan a encogerse por debajo
      de su contenido y la página desborda a lo ancho en el móvil */
   .columns > *, .grid, .card, .card .pad{min-width:0}
@@ -712,6 +930,16 @@ footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
   .columns{gap:28px}
   .hof-grid{grid-template-columns:1fr}
   .hof-cabecera input{width:100%}
+  .portada{padding:38px 18px 190px}
+  .portada .lema{font-size:15px}
+  .contadores{gap:8px}
+  .contador{min-width:0;flex:1 1 44%;padding:9px 12px}
+  /* dejamos sitio abajo y plantamos ahí a los dos que quedan */
+  .muneco{display:none}
+  .muneco.m-marciano,
+  .muneco.m-robot{display:block;width:calc(var(--ancho) * .62)}
+  .muneco.m-marciano{left:auto;right:8%;top:auto;bottom:64px}
+  .muneco.m-robot{left:12%;top:auto;bottom:58px}
   .modal{padding:10px}
   .modal-barra{flex-wrap:wrap;gap:8px;padding:10px 12px}
   .modal-barra h3{flex:1 1 100%;font-size:10px}
@@ -729,13 +957,16 @@ footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
 <header class="topbar">
   <div class="topbar-inner">
     <a class="logo" href="#">ARCADE<span>VAULT</span></a>
-    <nav class="nav">
-      <a href="#" class="on">Salón</a>
-      <a href="#catalogo">Catálogo</a>
+    <nav class="nav" id="nav">
+      <a href="#inicio" class="on">Inicio</a>
       <a href="#biblioteca">Biblioteca</a>
-      <a href="#hall">Hall of Fame</a>
+      <a href="#hall">Salón de la Fama</a>
+      <a href="#acerca">Acerca de</a>
     </nav>
-    <div class="wallet"><span class="coin"></span> 17 CABINAS</div>
+    <a class="sesion fuera" id="fichaSesion" href="acceso.html" title="Cuentas del salón">
+      <span class="avatar" id="fichaAvatar">?</span><span id="fichaTexto">ENTRAR</span>
+    </a>
+    <div class="wallet"><span class="coin"></span> 18 CABINAS</div>
   </div>
 </header>
 
@@ -763,6 +994,25 @@ footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
 
 <main class="wrap">
 
+  <section class="portada reveal" id="inicio" style="animation-delay:.04s">
+    <div class="munecos" id="munecos" aria-hidden="true"></div>
+    <div class="portada-texto">
+      <h1 class="marca">EL SALÓN<br>NUNCA <em>CIERRA</em></h1>
+      <p class="lema">Dieciocho cabinas encendidas, todas hechas a mano en HTML, CSS y JavaScript.</p>
+      <p class="letra-chica">Sin instalar nada y sin conexión: el salón entero corre dentro de tu navegador. Entra con tu ficha y deja tu nombre en el marcador.</p>
+      <div class="portada-botones">
+        <a class="btn" href="#biblioteca">VER LA BIBLIOTECA</a>
+        <a class="btn secundario" href="#hall">SALÓN DE LA FAMA</a>
+      </div>
+    </div>
+    <div class="contadores">
+      <div class="contador"><b>18</b><span>Cabinas</span></div>
+      <div class="contador"><b>0</b><span>Instalaciones</span></div>
+      <div class="contador"><b>100%</b><span>JavaScript</span></div>
+      <div class="contador"><b>24/7</b><span>Abierto</span></div>
+    </div>
+  </section>
+
   <p class="eyebrow reveal" style="animation-delay:.05s">CABINA DESTACADA</p>
 
   <section class="hero reveal" style="animation-delay:.1s">
@@ -789,20 +1039,20 @@ footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
 
   <div class="strip reveal" style="animation-delay:.16s" id="strip"></div>
 
-  <div class="columns">
+  <div class="columns" id="biblioteca">
     <div>
-      <p class="eyebrow reveal" style="animation-delay:.22s" id="catalogo">CATÁLOGO DEL SALÓN</p>
+      <p class="eyebrow reveal" style="animation-delay:.22s" id="catalogo">BIBLIOTECA DEL SALÓN</p>
       <div class="grid reveal" style="animation-delay:.26s" id="grid"></div>
     </div>
 
     <aside>
-      <div class="side reveal" style="animation-delay:.3s" id="biblioteca">
-        <h3>TU BIBLIOTECA</h3>
+      <div class="side reveal" style="animation-delay:.3s">
+        <h3>TODAS LAS CABINAS</h3>
         <div id="rank"></div>
       </div>
       <div class="marquee reveal" style="animation-delay:.34s">
         <h3>AVISOS</h3>
-        <div class="ticker"><span>TODAS LAS CABINAS CORREN EN LOCAL · SIN INSTALAR NADA · DIECISIETE JUEGOS EN HTML Y JAVASCRIPT PURO · PULSA P PARA PAUSAR EN CUALQUIERA · NO GOLPEES LA MÁQUINA</span></div>
+        <div class="ticker"><span>TODAS LAS CABINAS CORREN EN LOCAL · SIN INSTALAR NADA · DIECIOCHO JUEGOS EN HTML Y JAVASCRIPT PURO · PULSA P PARA PAUSAR EN CUALQUIERA · NO GOLPEES LA MÁQUINA</span></div>
       </div>
     </aside>
   </div>
@@ -814,10 +1064,49 @@ footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
       <div class="campo">
         <label for="jugador">Firmas tus marcas como</label>
         <input id="jugador" maxlength="12" spellcheck="false" autocomplete="off">
+        <small id="hofCuenta"></small>
       </div>
       <button id="borrarHof">BORRAR MARCAS</button>
     </div>
     <div class="hof-grid" id="hofGrid"></div>
+  </section>
+
+  <section class="acerca reveal" id="acerca" style="animation-delay:.42s">
+    <p class="eyebrow">ACERCA DE</p>
+    <div class="acerca-caja">
+      <div>
+        <h3>UN SALÓN QUE CABE<br>EN UNA CARPETA</h3>
+        <p>
+          Arcade Vault reúne dieciocho cabinas escritas desde cero, sin motores ni
+          librerías: cada juego es <b>un solo archivo</b> de HTML con su canvas, su
+          bucle y sus reglas dentro.
+        </p>
+        <p>
+          El salón es la portada común. Reparte las cabinas por género, guarda las
+          mejores marcas y presta a todos los juegos el mismo mando táctil, el mismo
+          botón de pantalla completa y el mismo marcador.
+        </p>
+        <p>
+          Nada de esto sale de tu equipo. <b>Las partidas, las cuentas y los récords
+          viven en el almacenamiento del navegador</b>, así que puedes jugar sin
+          conexión, y también perderlo todo si limpias los datos del sitio.
+        </p>
+      </div>
+      <div>
+        <dl class="fichas-tecnicas">
+          <div class="ficha-tec"><dt>Cabinas</dt><dd>18</dd></div>
+          <div class="ficha-tec"><dt>Escritas en</dt><dd>HTML · CSS · JS</dd></div>
+          <div class="ficha-tec"><dt>Dependencias</dt><dd>NINGUNA</dd></div>
+          <div class="ficha-tec"><dt>Marcador</dt><dd>LOCAL</dd></div>
+          <div class="ficha-tec"><dt>Cuentas</dt><dd>EN ESTE EQUIPO</dd></div>
+          <div class="ficha-tec"><dt>Mando</dt><dd>TECLADO Y TÁCTIL</dd></div>
+        </dl>
+        <p class="acerca-firma">
+          <span class="sello" id="selloAcerca" aria-hidden="true"></span>
+          Hecho a mano en 01-firstcode. Pulsa P para pausar en cualquier cabina.
+        </p>
+      </div>
+    </div>
   </section>
 
 </main>
@@ -836,9 +1125,10 @@ footer .logo{font-size:11px;display:inline-block;margin-bottom:10px}
 
 <footer>
   <a class="logo" href="#">ARCADE<span>VAULT</span></a>
-  <p>SALÓN LOCAL · 17 CABINAS EN 01-FIRSTCODE · 2026</p>
+  <p>SALÓN LOCAL · 18 CABINAS EN 01-FIRSTCODE · 2026</p>
 </footer>
 
+<script src="cuentas.js"></script>
 <script src="salon.js"></script>
 <script>
 /* Cada entrada apunta a una carpeta que existe de verdad en 01-firstcode. */
@@ -962,6 +1252,13 @@ const JUEGOS = [
     tags:['Boxeo','Tres rivales','Contragolpe','Estrellas'],
     d:'Boxeo visto desde tu esquina. Cada rival avisa antes de pegar y solo se abre justo después de fallar: ahí está todo el juego. Esquivar da estrellas, y la estrella tumba.'
   },
+  {
+    t:'Mundo Fontanero', g:'plataformas', a:'a18',
+    url:'../35-fontanero/index.html', carpeta:'35-fontanero',
+    jugadores:'1 jugador', controles:'Flechas, Z y X',
+    tags:['Plataformas','Tres mundos','Salto giratorio','Capa'],
+    d:'Scroll lateral de los de dieciséis bits. La seta te hace grande, la pluma te da capa y con ella se planea; el salto giratorio rompe ladrillos y no teme a las corazas. Tres mundos, del prado al castillo.'
+  },
 ];
 
 const grid = document.getElementById('grid');
@@ -1073,13 +1370,180 @@ grid.addEventListener('click', e => {
   abrirPrevia(JUEGOS.find(j => j.carpeta === b.dataset.previa));
 });
 
+/* ---------------- muñecos de la portada ----------------
+   Cada vecino del salón es una rejilla de píxeles: una letra por color,
+   punto para el hueco. De ahí sale un SVG de rectángulos de 1x1, que
+   escala sin despeinarse por muy grande que se ponga la portada.        */
+
+const TINTA = {
+  a:'#35f0d0',  // volt
+  b:'#ff2e88',  // neón
+  c:'#ffb020',  // ámbar
+  d:'#e9e5ff',  // tinta clara
+  e:'#7b5cff',  // violeta
+  o:'#07060d'   // hueco oscuro, para los ojos
+};
+
+const VECINOS = {
+  marciano: [
+    '..a.....a..',
+    '...a...a...',
+    '..aaaaaaa..',
+    '.aa.aaa.aa.',
+    'aaaaaaaaaaa',
+    'a.aaaaaaa.a',
+    'a.a.....a.a',
+    '...aa.aa...'
+  ],
+  fantasma: [
+    '..bbbb..',
+    '.bbbbbb.',
+    'bddbbddb',
+    'bdobbdob',
+    'bbbbbbbb',
+    'bbbbbbbb',
+    'bbbbbbbb',
+    'b.bb.bb.'
+  ],
+  robot: [
+    '....c....',
+    '....c....',
+    '..ccccc..',
+    '.ccccccc.',
+    '.cocccoc.',
+    '.ccccccc.',
+    '.caaaaac.',
+    'c.ccccc.c',
+    '.c.....c.'
+  ],
+  platillo: [
+    '...dddd...',
+    '..daaaad..',
+    '.daaaaaad.',
+    'eeeeeeeeee',
+    'ecececece.',
+    '.ee....ee.',
+    '..e....e..'
+  ],
+  pulpo: [
+    '..eeee..',
+    '.eeeeee.',
+    'eedeedee',
+    'eeoeeoee',
+    'eeeeeeee',
+    '.eeeeee.',
+    'e.e..e.e',
+    'e.e..e.e'
+  ],
+  copa: [
+    '.cccccc.',
+    '.cccccc.',
+    'ccccccca',
+    '.cccccc.',
+    '..cccc..',
+    '...cc...',
+    '..cccc..',
+    '.cccccc.'
+  ]
+};
+
+function dibujarVecino(filas){
+  const ancho = Math.max(...filas.map(f => f.length));
+  let piezas = '';
+  filas.forEach((fila, y) => {
+    for(let x = 0; x < fila.length; x++){
+      const tono = TINTA[fila[x]];
+      // 1.02 de lado para que no se vean costuras entre píxeles vecinos
+      if(tono) piezas += `<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${tono}"/>`;
+    }
+  });
+  return `<svg viewBox="0 0 ${ancho} ${filas.length}" shape-rendering="crispEdges" focusable="false">${piezas}</svg>`;
+}
+
+/* dónde se planta cada uno: izquierda, arriba, ancho y ritmo propio */
+const REPARTO = [
+  { quien:'marciano', x:'70%', y:'16%', w:130, plano:'cerca', ritmo:13, salto:1.7, giro:-6 },
+  { quien:'fantasma', x:'85%', y:'54%', w:92,  plano:'medio', ritmo:16, salto:2.1, giro:5 },
+  { quien:'robot',    x:'59%', y:'60%', w:104, plano:'cerca', ritmo:11, salto:1.4, giro:4 },
+  { quien:'platillo', x:'55%', y:'5%',  w:108, plano:'lejos', ritmo:19, salto:2.6, giro:-3 },
+  { quien:'pulpo',    x:'89%', y:'11%', w:76,  plano:'lejos', ritmo:15, salto:1.9, giro:7 },
+  { quien:'copa',     x:'75%', y:'83%', w:62,  plano:'lejos', ritmo:17, salto:2.3, giro:-5 }
+];
+
+function poblarPortada(){
+  const casa = document.getElementById('munecos');
+  if(!casa) return;
+  casa.innerHTML = REPARTO.map((v, i) => `
+    <div class="muneco ${v.plano} m-${v.quien}"
+         style="--x:${v.x}; --y:${v.y}; --ancho:${v.w}px;
+                --giro:${v.giro}deg; --salto:${v.salto}s;
+                animation-duration:${v.ritmo}s;
+                animation-delay:${(i * -2.4).toFixed(1)}s">
+      ${dibujarVecino(VECINOS[v.quien])}
+    </div>`).join('');
+
+  // el mismo lenguaje para el sello de la ficha técnica
+  const sello = document.getElementById('selloAcerca');
+  if(sello) sello.innerHTML = dibujarVecino(VECINOS.marciano);
+}
+
+/* ---------------- la barra sabe dónde estás ---------------- */
+
+function vigilarSecciones(){
+  const enlaces = Array.from(document.querySelectorAll('#nav a'));
+  const destinos = enlaces
+    .map(a => ({ a, seccion: document.querySelector(a.getAttribute('href')) }))
+    .filter(d => d.seccion);
+  if(!destinos.length || !('IntersectionObserver' in window)) return;
+
+  const vistas = new Set();
+  const ojo = new IntersectionObserver(entradas => {
+    entradas.forEach(e => e.isIntersecting ? vistas.add(e.target) : vistas.delete(e.target));
+    // manda la sección visible que aparece antes en la página
+    const activa = destinos.find(d => vistas.has(d.seccion));
+    if(!activa) return;
+    enlaces.forEach(a => a.classList.toggle('on', a === activa.a));
+  }, { rootMargin: '-45% 0px -45% 0px' });
+
+  destinos.forEach(d => ojo.observe(d.seccion));
+}
+
 /* ---------------- hall of fame ---------------- */
 const hofGrid = document.getElementById('hofGrid');
 const hofAviso = document.getElementById('hofAviso');
 const campoJugador = document.getElementById('jugador');
 const botonBorrar = document.getElementById('borrarHof');
 
+/* ---------------- sesión ---------------- */
+const fichaSesion = document.getElementById('fichaSesion');
+const fichaAvatar = document.getElementById('fichaAvatar');
+const fichaTexto = document.getElementById('fichaTexto');
+const hofCuenta = document.getElementById('hofCuenta');
+
+function pintarSesion(){
+  const sesion = window.Cuentas && Cuentas.actual();
+
+  if(sesion){
+    fichaSesion.classList.remove('fuera');
+    fichaAvatar.textContent = sesion.alias.slice(0, 1);
+    fichaTexto.textContent = sesion.alias;
+    fichaSesion.title = 'Sesión de @' + sesion.usuario;
+  } else {
+    fichaSesion.classList.add('fuera');
+    fichaAvatar.textContent = '?';
+    fichaTexto.textContent = 'ENTRAR';
+    fichaSesion.title = 'Cuentas del salón';
+  }
+
+  if(hofCuenta){
+    hofCuenta.innerHTML = sesion
+      ? 'Alias de tu cuenta @' + sesion.usuario + '. <a href="acceso.html">Gestionar</a>'
+      : 'Juegas de invitado. <a href="acceso.html">Crea una cuenta</a> para conservarlo.';
+  }
+}
+
 function pintarHof(){
+  pintarSesion();
   if(!window.Hall || !Hall.disponible()){
     hofAviso.innerHTML = '<div class="hof-aviso">Este navegador no deja guardar marcas en local, así que el Hall of Fame queda vacío.</div>';
     hofGrid.innerHTML = '';
@@ -1142,6 +1606,8 @@ window.addEventListener('focus', pintarHof);
 window.addEventListener('pageshow', pintarHof);
 document.getElementById('modalCerrar').addEventListener('click', pintarHof);
 
+poblarPortada();
+vigilarSecciones();
 mostrarDestacado(0);
 pintarGrid('todos');
 pintarHof();

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TÍTULO DEL JUEGO</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🎮</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#07060d; --panel:#12101f; --edge:#2e2a4a;
+  --ink:#e9e5ff; --dim:#8b83b4; --neon:#ff2e88; --volt:#35f0d0; --amber:#ffb020;
+  --pixel:'Press Start 2P', monospace;
+  --body:'Chakra Petch', 'Trebuchet MS', sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  background:var(--void); color:var(--ink); font-family:var(--body);
+  min-height:100vh; display:flex; align-items:center; justify-content:center;
+  padding:20px; gap:26px; flex-wrap:wrap;
+}
+body::before{
+  content:''; position:fixed; inset:0; z-index:99; pointer-events:none;
+  background:repeating-linear-gradient(to bottom, rgba(0,0,0,.22) 0 1px, transparent 1px 3px);
+}
+h1{font-family:var(--pixel); font-size:13px; margin-bottom:18px; text-shadow:2px 2px 0 var(--volt)}
+.stage{position:relative; border:1px solid var(--edge); background:#05040c;
+       box-shadow:0 0 0 6px var(--panel), 0 20px 60px rgba(0,0,0,.7)}
+canvas{display:block; max-width:100%; height:auto}
+.side{width:196px}
+.box{border:1px solid var(--edge); background:var(--panel); padding:13px 14px; margin-bottom:12px}
+.box h2{font-family:var(--pixel); font-size:9px; color:var(--volt); margin-bottom:9px}
+.box .val{font-family:var(--pixel); font-size:15px; color:var(--amber)}
+.keys{font-size:12px; color:var(--dim); line-height:1.9}
+.keys b{color:var(--ink); font-weight:600}
+.back{display:inline-block; margin-top:4px; font-family:var(--pixel); font-size:8px;
+      color:var(--void); background:var(--volt); padding:9px 11px; text-decoration:none}
+.back:hover{background:var(--neon); color:#12000a}
+.overlay{
+  position:absolute; inset:0; display:none; flex-direction:column;
+  align-items:center; justify-content:center; gap:16px;
+  background:rgba(5,4,12,.88); text-align:center; padding:20px;
+}
+.overlay.show{display:flex}
+.overlay p{font-family:var(--pixel); font-size:15px; line-height:1.9}
+.overlay small{color:var(--dim); font-size:13px; display:block; margin-top:6px}
+.overlay button{
+  font-family:var(--pixel); font-size:10px; border:0; cursor:pointer;
+  background:var(--neon); color:#12000a; padding:13px 18px;
+}
+.overlay button:hover{background:var(--volt); color:var(--void)}
+</style>
+</head>
+<body>
+
+<div>
+  <h1>TÍTULO DEL JUEGO</h1>
+  <div class="stage">
+    <canvas id="cv" width="640" height="480"></canvas>
+    <div class="overlay show" id="over">
+      <p id="overTitle">TÍTULO DEL JUEGO</p>
+      <small id="overText">Una frase con el objetivo</small>
+      <button id="overBtn">EMPEZAR</button>
+    </div>
+  </div>
+</div>
+
+<div class="side">
+  <div class="box"><h2>PUNTOS</h2><div class="val" id="score">0</div></div>
+  <div class="box"><h2>RÉCORD</h2><div class="val" id="best">0</div></div>
+  <div class="box"><h2>NIVEL</h2><div class="val" id="nivel">1</div></div>
+  <div class="box ancho solo-texto">
+    <h2>CONTROLES</h2>
+    <div class="keys">
+      <b>← →</b> mover<br>
+      <b>ESPACIO</b> acción<br>
+      <b>P</b> pausa
+    </div>
+  </div>
+  <div class="box ancho solo-texto">
+    <h2>REGLAS</h2>
+    <div class="keys">
+      Qué termina la partida y qué da puntos, en dos frases.
+    </div>
+  </div>
+  <a class="back" href="../04-arcade-vault/index.html">&lt; VOLVER AL SALÓN</a>
+</div>
+
+<script src="../04-arcade-vault/cuentas.js"></script>
+<script src="../04-arcade-vault/salon.js"></script>
+<script src="../04-arcade-vault/pantalla.js"></script>
+<script src="../04-arcade-vault/sonido.js"></script>
+<script>window.MANDO = { cruceta:'horizontal', acciones: [{ k:' ', txt:'ACCIÓN' }, { k:'p', txt:'PAUSA' }] };</script>
+<script src="../04-arcade-vault/movil.js"></script>
+<script>
+const ID = 'NN-slug';   // igual que el nombre de la carpeta
+const cv = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const sfx = n => window.Sonido && Sonido.efecto(n);
+
+const el = {
+  score: document.getElementById('score'),
+  best: document.getElementById('best'),
+  nivel: document.getElementById('nivel'),
+  over: document.getElementById('over'),
+  overTitle: document.getElementById('overTitle'),
+  overText: document.getElementById('overText'),
+  overBtn: document.getElementById('overBtn'),
+};
+
+let estado = 'menu';          // 'menu' | 'jugando' | 'pausa' | 'fin'
+let score = 0, best = 0, nivel = 1;
+const teclas = {};
+
+function arrancar(){
+  score = 0; nivel = 1;
+  // ...reiniciar el mundo
+  estado = 'jugando';
+  el.over.classList.remove('show');
+  pintarHud();
+}
+
+function mostrar(titulo, texto, boton){
+  el.overTitle.textContent = titulo;
+  el.overText.textContent = texto;
+  el.overBtn.textContent = boton;
+  el.over.classList.add('show');
+}
+
+function pintarHud(){
+  el.score.textContent = score;
+  el.best.textContent = best;
+  el.nivel.textContent = nivel;
+}
+
+function terminar(){
+  estado = 'fin';
+  best = Math.max(best, score);
+  sfx('muerte');
+  window.Hall && Hall.registrar(ID, score, { unidad: 'pts', etiqueta: 'nivel ' + nivel });
+  mostrar('GAME OVER', score + ' puntos', 'OTRA PARTIDA');
+  pintarHud();
+}
+
+const PASO = 1000 / 60;       // lógica a paso fijo
+function actualizar(){
+  // ...mover, colisionar, sumar puntos, llamar a terminar()
+}
+
+function dibujar(){
+  ctx.fillStyle = '#05040c';
+  ctx.fillRect(0, 0, cv.width, cv.height);
+  // ...pintar el mundo con la paleta del salón
+}
+
+document.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if(k === 'p'){
+    if(estado === 'jugando'){ estado = 'pausa'; mostrar('PAUSA', 'Pulsa P para seguir', 'REINICIAR'); }
+    else if(estado === 'pausa'){ estado = 'jugando'; el.over.classList.remove('show'); }
+    return;
+  }
+  if([' ', 'arrowleft', 'arrowright', 'arrowup', 'arrowdown'].includes(k)) e.preventDefault();
+  teclas[k] = true;
+});
+document.addEventListener('keyup', e => { teclas[e.key.toLowerCase()] = false; });
+el.overBtn.addEventListener('click', arrancar);
+
+let ultimo = performance.now(), acumulado = 0;
+function bucle(t){
+  acumulado += Math.min(250, t - ultimo);
+  ultimo = t;
+  while(acumulado >= PASO){
+    if(estado === 'jugando') actualizar();
+    acumulado -= PASO;
+  }
+  dibujar();
+  requestAnimationFrame(bucle);
+}
+
+pintarHud();
+requestAnimationFrame(bucle);
+</script>
+
+</body>
+</html>

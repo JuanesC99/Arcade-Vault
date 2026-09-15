@@ -38,8 +38,13 @@
   }
 
   var Hall = {
-    /* Nombre con el que se firman las marcas. */
+    /* Nombre con el que se firman las marcas. Manda la sesión abierta:
+       si alguien entró con su cuenta, sus marcas van con su alias. */
     jugador: function () {
+      try {
+        var alias = window.Cuentas && Cuentas.alias();
+        if (alias) return alias;
+      } catch (e) {}
       try {
         return localStorage.getItem(CLAVE_NOMBRE) || 'JUGADOR';
       } catch (e) {
@@ -49,6 +54,9 @@
 
     ponerJugador: function (nombre) {
       var limpio = String(nombre || '').trim().slice(0, 12).toUpperCase() || 'JUGADOR';
+      try {
+        if (window.Cuentas && Cuentas.actual()) return Cuentas.ponerAlias(limpio) || limpio;
+      } catch (e) {}
       try { localStorage.setItem(CLAVE_NOMBRE, limpio); } catch (e) {}
       return limpio;
     },

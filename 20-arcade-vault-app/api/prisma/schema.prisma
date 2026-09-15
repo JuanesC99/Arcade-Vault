@@ -1,0 +1,44 @@
+// Modelo del Arcade Vault: jugadores y sus marcas.
+// Una marca es una partida terminada; el Hall of Fame se calcula
+// consultando las mejores de cada cabina, no guardando un ranking aparte.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Jugador {
+  id        String   @id @default(cuid())
+  usuario   String   @unique
+  alias     String
+  clave     String // hash bcrypt, nunca la contraseña
+  creado    DateTime @default(now())
+  ultimoAcceso DateTime @default(now())
+
+  marcas Marca[]
+
+  @@map("jugadores")
+}
+
+model Marca {
+  id     String @id @default(cuid())
+  juego  String // id de la cabina, la carpeta: "06-snake"
+  valor  Int
+  unidad String @default("pts")
+  // texto libre que la cabina añade: "largo 52", "nivel 4"…
+  etiqueta String @default("")
+  // true cuando gana el número más bajo, como en un cronómetro
+  menorEsMejor Boolean @default(false)
+  creada DateTime @default(now())
+
+  jugadorId String
+  jugador   Jugador @relation(fields: [jugadorId], references: [id], onDelete: Cascade)
+
+  @@index([juego, valor])
+  @@index([jugadorId])
+  @@map("marcas")
+}

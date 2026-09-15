@@ -1,0 +1,22 @@
+{
+  "name": "arcade-vault-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "El Arcade Vault en Next.js (salón y cabinas) con marcador en Nest.js sobre SQLite.",
+  "scripts": {
+    "instalar": "npm install --prefix api && npm install --prefix web",
+    "preparar-bd": "npm --prefix api run bd:migrar",
+    "dev": "concurrently -n api,web -c magenta,cyan \"npm:dev:api\" \"npm:dev:web\"",
+    "dev:api": "npm --prefix api run start:dev",
+    "dev:web": "npm --prefix web run dev",
+    "build": "npm --prefix api run build && npm --prefix web run build",
+    "start": "concurrently -n api,web -c magenta,cyan \"npm:start:api\" \"npm:start:web\"",
+    "start:api": "npm --prefix api run start:prod",
+    "start:web": "npm --prefix web run start",
+    "convertir-cabinas": "node herramientas/convertir-cabinas.mjs",
+    "portar-extras": "node herramientas/portar-extras.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

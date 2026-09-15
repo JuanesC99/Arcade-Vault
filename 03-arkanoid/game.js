@@ -66,6 +66,37 @@ let continueTimer = 0;
 
 const keys = { ArrowLeft: false, ArrowRight: false };
 
+// ---- panel del salón ----
+// Los mismos recuadros que las demás cabinas: el marcador vive en el panel,
+// no dentro del lienzo.
+const el = {
+  score: document.getElementById('score'),
+  best: document.getElementById('best'),
+  level: document.getElementById('level'),
+  lives: document.getElementById('lives'),
+  continues: document.getElementById('continues'),
+};
+
+let best = 0;
+const ultimoHud = {};
+
+// El bucle llama a pintarHud en cada cuadro, pero solo se escribe en el DOM
+// cuando el número cambió, para no mover el layout sesenta veces por segundo.
+function ponerHud(nombre, valor) {
+  if (!el[nombre] || ultimoHud[nombre] === valor) return;
+  ultimoHud[nombre] = valor;
+  el[nombre].textContent = valor;
+}
+
+function pintarHud() {
+  if (score > best) best = score;
+  ponerHud('score', score);
+  ponerHud('best', best);
+  ponerHud('level', currentLevel + '/' + LEVELS.length);
+  ponerHud('lives', lives);
+  ponerHud('continues', continuesLeft);
+}
+
 function initPaddle() {
   paddle.x = (canvas.width - paddle.w) / 2;
 }
@@ -487,22 +518,6 @@ function draw() {
   drawSprite(ctx, 'paddle', paddle.x, paddle.y, paddle.w, paddle.h);
   for (const ball of balls) drawSprite(ctx, 'ball', ball.x, ball.y, ball.w, ball.h);
 
-  if (gameState === 'playing') {
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 18px monospace';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    ctx.fillText('Score: ' + score, 10, 10);
-    ctx.textAlign = 'center';
-    ctx.fillText('Nivel: ' + currentLevel, canvas.width / 2, 10);
-    const ballSize = 16;
-    const ballSpacing = 4;
-    for (let i = 0; i < lives; i++) {
-      const bx = canvas.width - 10 - (lives - i) * (ballSize + ballSpacing);
-      drawSprite(ctx, 'ball', bx, 10, ballSize, ballSize);
-    }
-  }
-
   if (gameState === 'continue') drawContinueOverlay();
   if (gameState === 'gameover') drawGameOverOverlay();
   if (gameState === 'win')      drawOverlay('¡Completaste el juego!');
@@ -526,6 +541,7 @@ function loop(timestamp) {
 
   if (!isPaused) update(dt);
   draw();
+  pintarHud();
 
   requestAnimationFrame(loop);
 }
@@ -533,5 +549,6 @@ function loop(timestamp) {
 loadSpritesheet(() => {
   initPaddle();
   loadLevel(1);
+  pintarHud();
   requestAnimationFrame(loop);
 });
